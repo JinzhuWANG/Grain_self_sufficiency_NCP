@@ -1,0 +1,3 @@
+# Ignore pycares files
+**/__pycache__/
+.vscode/**
