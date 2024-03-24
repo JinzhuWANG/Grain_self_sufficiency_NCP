@@ -1,6 +1,7 @@
 import pandas as pd
 import rasterio
 import geopandas as gpd
+import matplotlib.pyplot as plt
 
 from helper_func.parameters import GAEZ_variables
 
@@ -16,6 +17,7 @@ group_vars.remove('model')
 
 # Read the shp of the research region
 research_region_shp = gpd.read_file('data/Vector_boundary/North_china_Plain_Province.shp')
+
 
 
 src = rasterio.open(GAEZ_4_df.iloc[0]['fpath'])

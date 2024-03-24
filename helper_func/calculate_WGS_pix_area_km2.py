@@ -86,7 +86,14 @@ def calculate_area(tif:str, output_path:str):
 
     
     
-        
+if __name__ == '__main__':
+    # Get the first GAEZ_tif file
+    tif = glob('data/GAEZ_v4/GAEZ_tifs/*tif')[0]
+    
+    # Get the output path
+    output_path = 'data/GAEZ_v4/GAEZ_area_km2.tif'
+    
+    calculate_area(tif, output_path)
         
 
 
