@@ -61,3 +61,7 @@ GAEZ_water_supply = {
     }
 }
 
+GAEZ_variables ={
+    'GAEZ_4': ["year", "model", "rcp", "crop", "water_supply", "c02_fertilization"],
+    'GAEZ_5': ["year", "crop", "water_supply"]
+}
