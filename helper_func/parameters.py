@@ -65,3 +65,10 @@ GAEZ_variables ={
     'GAEZ_4': ["year", "model", "rcp", "crop", "water_supply", "c02_fertilization"],
     'GAEZ_5': ["year", "crop", "water_supply"]
 }
+
+
+GAEZ_year_mid = {
+    '2011-2040': 2025,
+    '2041-2070': 2055, 
+    '2071-2100': 2085
+}
