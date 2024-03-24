@@ -32,10 +32,12 @@ GAEZ_columns = {
     "GAEZ_6": ["name", "sub_theme_name", "variable", "year", "crop", "water_supply", "units"]
 }
 
-
-GAEZ_variables = {
-    "GAEZ_4": ["Average attainable yield of current cropland"],
-    "GAEZ_5": ["Yield"],
+# Note
+# - GAEZ_4 use attainable yield of <current cropland> because it includes both irrigated and rainfed cropland
+# - GAEZ_4 use input_level == "High" because we assume the farming intensity is high in China in the future
+GAEZ_filter_con = {
+    "GAEZ_4": 'variable == "Average attainable yield of current cropland" and input_level == "High"',
+    "GAEZ_5": 'variable == "Yield"' 
 }
 
 GAEZ_years = {

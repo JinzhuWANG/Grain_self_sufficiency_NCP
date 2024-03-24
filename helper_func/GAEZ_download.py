@@ -10,7 +10,7 @@ sys.path.append('./')
 
 from helper_func.GAEZ_scrap import get_with_retry, headers
 from helper_func.parameters import (crops, 
-                                    GAEZ_variables, 
+                                    GAEZ_filter_con, 
                                     GAEZ_columns, 
                                     GAEZ_input,
                                     GAEZ_years,
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         # Select the columns
         df = df[GAEZ_columns[GAEZ]]
         # Filter the rows
-        df = df.query(f'crop in {crops} and year in {GAEZ_years[GAEZ]} and variable in {GAEZ_variables[GAEZ]}')
+        df = df.query(f'crop in {crops} and year in {GAEZ_years[GAEZ]} and {GAEZ_filter_con[GAEZ]}')
         # Rename the water_supply column
         df['water_supply'] = df['water_supply'].replace(GAEZ_water_supply[GAEZ])
         # Add the GAEZ category
