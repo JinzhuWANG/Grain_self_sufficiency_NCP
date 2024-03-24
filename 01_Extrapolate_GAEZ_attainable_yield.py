@@ -40,12 +40,11 @@ GAEZ_4_df = pd.DataFrame(dfs)
 
 
 
-
 # Remove year from the group_vars
 group_vars.remove('year')
 
 dfs = []
-with concurrent.futures.ProcessPoolExecutor() as executor:
+with concurrent.futures.ThreadPoolExecutor() as executor:
     futures = []
     for idx, df in list(GAEZ_4_df.groupby(group_vars)):
         futures.append(executor.submit(extrapolate_array, idx, df, group_vars))
@@ -59,3 +58,6 @@ with concurrent.futures.ProcessPoolExecutor() as executor:
     
 # Concatenate the results
 GAEZ_4_df = pd.DataFrame(dfs)
+
+# Save the results
+GAEZ_4_df.to_pickle('data/results/GAEZ_4_extrapolated.pkl')
