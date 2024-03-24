@@ -8,6 +8,14 @@ GAEZ_input = ['GAEZ_4',
 # Define the number of parallel threads to use
 PARALLEY_THREADS = 32
 
+# The province in lexciographical order
+Province_names_en = ['Anhui', 'Beijing', 'Hebei', 'Henan', 'Jiangsu', 'Shandong', 'Tianjin']
+Province_names_cn_en = dict(zip(['北京市','天津市', '河北省','江苏省', '安徽省', '河南省', '山东省'],
+                      ['Beijing','Tianjin', 'Hebei','Jiangsu', 'Anhui', 'Henan', 'Shandong']))
+
+# Define the projected years
+Projection_years = list(range(2020, 2101, 5))
+
 
 
 # Define the full names of the GAEZ categories
@@ -71,4 +79,10 @@ GAEZ_year_mid = {
     '2011-2040': 2025,
     '2041-2070': 2055, 
     '2071-2100': 2085
+}
+
+Attainable_conversion = {
+    'Maize' : 0.87,
+    'Wetland rice':  0.875,
+    'Wheat': 0.875
 }

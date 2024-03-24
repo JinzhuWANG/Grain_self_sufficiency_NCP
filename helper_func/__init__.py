@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import rasterio
 
+from helper_func.parameters import Province_names_cn_en
+
 
 def compute_mean_std(paths:list[str]):
     """
@@ -51,3 +53,25 @@ def extrapolate_array(idx:tuple, in_df:pd.DataFrame, group_vars:list[str]):
     }
     
     return stats
+
+
+# function to read yearbook csv and orginize data
+def read_yearbook(path:str, crop:str, city_cn_en:dict=Province_names_cn_en):
+
+    # read and reshape data to long format
+    df = pd.read_csv(path)
+    df = df.set_index('地区')
+    df = df.stack().reset_index()
+    df.columns = ['Province','year','Value']
+    
+    df['year'] = df['year'].apply(lambda x: int(x[:4]))
+    df['crop'] = crop
+
+    # fitler df and replace CN to EN
+    df = df[df['Province'].isin(city_cn_en.keys())]
+    df = df.replace(city_cn_en)
+
+    # remove 0s
+    df = df[df['Value']!=0]
+
+    return df
