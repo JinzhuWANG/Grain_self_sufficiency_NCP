@@ -43,17 +43,13 @@ GAEZ_4_df = pd.DataFrame(dfs)
 # Remove year from the group_vars
 group_vars.remove('year')
 
-dfs = []
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    futures = []
-    for idx, df in list(GAEZ_4_df.groupby(group_vars)):
-        futures.append(executor.submit(extrapolate_array, idx, df, group_vars))
+from tqdm import tqdm
 
-    for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
-        try:
-            dfs.append(future.result())
-        except Exception as e:
-            print(e)
+dfs = []
+for idx, df in tqdm(list(GAEZ_4_df.groupby(group_vars))):
+    result = extrapolate_array(idx, df, group_vars)
+    dfs.append(result)
+
 
     
 # Concatenate the results

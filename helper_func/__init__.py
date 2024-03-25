@@ -25,31 +25,31 @@ def compute_mean_std(paths:list[str]):
 
 
 def extrapolate_array(idx:tuple, in_df:pd.DataFrame, group_vars:list[str]):
-    # Sort the df by year
+    # Sort the df by year 2025, 2055, 2085
     df = in_df.sort_values('year')
     
     # Linearly interpolated tif paths
-    step_2020_2055 = (df.iloc[1]['mean'] - df.iloc[0]['mean'])/ (2055 - 2025)
-    step_2055_2100 = (df.iloc[2]['mean'] - df.iloc[1]['mean'])/ (2085 - 2055)
+    step_2025_2055 = (df.iloc[1]['mean'] - df.iloc[0]['mean'])/ (2055 - 2025)
+    step_2055_2085 = (df.iloc[2]['mean'] - df.iloc[1]['mean'])/ (2085 - 2055)
     
-    start_2020 = df.iloc[0]['mean'] - step_2020_2055 * (2025 - 2020)
+    start_2010 = df.iloc[0]['mean'] - step_2025_2055 * (2025 - 2010)
     mid_2055 = df.iloc[1]['mean']
-    end_2100 = df.iloc[1]['mean'] + step_2055_2100 * (2100 - 2055)
+    end_2100 = df.iloc[1]['mean'] + step_2055_2085 * (2100 - 2055)
     
-    mean_2020_2055 = np.linspace(start_2020, mid_2055, int((2055 - 2020)/5 + 1))
+    mean_2010_2055 = np.linspace(start_2010, mid_2055, int((2055 - 2010)/5 + 1))
     mean_2055_2100 = np.linspace(mid_2055, end_2100, int((2100 - 2055)/5 + 1))
-    mean_2020_2100 = np.concatenate([mean_2020_2055, mean_2055_2100[1:]])
+    mean_2010_2100 = np.concatenate([mean_2010_2055, mean_2055_2100[1:]])
     
-    std_2020_2055 = np.stack([df.iloc[1]['std']] * len(mean_2020_2055), axis=0)
+    std_2010_2055 = np.stack([df.iloc[1]['std']] * len(mean_2010_2055), axis=0)
     std_2055_2100 = np.stack([df.iloc[2]['std']] * len(mean_2055_2100), axis=0)
-    std_2020_2100 = np.concatenate([std_2020_2055, std_2055_2100[1:]])
+    std_2010_2100 = np.concatenate([std_2010_2055, std_2055_2100[1:]])
 
     
     # Save the interpolated mean and std
     stats = {**dict(zip(group_vars, idx)),
-                'year': np.arange(2020, 2101, 5),
-                'mean': mean_2020_2100, 
-                'std': std_2020_2100, 
+                'year': np.arange(2010, 2101, 5),
+                'mean': mean_2010_2100, 
+                'std': std_2010_2100, 
     }
     
     return stats

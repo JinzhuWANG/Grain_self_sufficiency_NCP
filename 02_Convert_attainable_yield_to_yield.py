@@ -15,6 +15,10 @@ GAEZ_attainable = pd.read_pickle('data/results/GAEZ_4_extrapolated.pkl')
 # Multiply the attainable yield by the conversion factor
 GAEZ_attainable['mean'] = GAEZ_attainable.apply(lambda x: x['mean'] * Attainable_conversion[x['crop']], axis=1)
 GAEZ_attainable['std'] = GAEZ_attainable.apply(lambda x: x['std'] * Attainable_conversion[x['crop']], axis=1)
+GAEZ_attainable.to_pickle('data/results/GAEZ_attainable.pkl')
+
+
+
 
 # Read the Province_mask_mean for computing the mean statistics for each province
 with rasterio.open('data/GAEZ_v4/Province_mask_mean.tif') as src:
