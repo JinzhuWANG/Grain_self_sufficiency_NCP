@@ -16,24 +16,16 @@ GAEZ_attainable = pd.read_pickle('data/results/GAEZ_4_extrapolated.pkl')
 GAEZ_attainable['mean'] = GAEZ_attainable.apply(lambda x: x['mean'] * Attainable_conversion[x['crop']], axis=1)
 GAEZ_attainable['std'] = GAEZ_attainable.apply(lambda x: x['std'] * Attainable_conversion[x['crop']], axis=1)
 
-# Read the Province_mask for computing the statistics for each province
-with rasterio.open('data\GAEZ_v4\Province_mask.tif') as src:
-    Province_mask_bool_phw = src.read()              # (province, height, width)
+# Read the Province_mask_mean for computing the mean statistics for each province
+with rasterio.open('data/GAEZ_v4/Province_mask_mean.tif') as src:
+    Province_mask_mean_phw = src.read()              # (province, height, width)
 
 # Compute the mean and std of attainable yield for each province
 mean_ryhw = np.stack(GAEZ_attainable['mean']) # (row, year, height, width)
 std_ryhw = np.stack(GAEZ_attainable['std'])   # (row, year, height, width)
 
-# Count the pixels for each province that are greater than 0
-Province_mask_valide_count = np.einsum('phw,ryhw->phw', Province_mask_bool_phw, mean_ryhw) > 0
-Province_mask_valide_count = Province_mask_valide_count.sum(axis=(1,2)) # (province)
-
-# Get the mask_mean
-Province_mask_mean_phw = Province_mask_bool_phw / Province_mask_valide_count[:, None, None] # (province, height, width)
-
 # Compute the yield for each province
 yield_rpy = np.einsum('phw,ryhw->rpy', Province_mask_mean_phw, mean_ryhw) # (row, province, year)
-
 
 
 
