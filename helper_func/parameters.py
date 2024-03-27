@@ -1,21 +1,30 @@
-# Define the  crops and GAEZ used in the analysis
-crops = ['Maize','Wetland rice','Wheat']
-
+# Define the GAEZ input data
 GAEZ_input = ['GAEZ_4',
               'GAEZ_5']
+
+
+# Define the  crops, water_supply, and c02_fertilization used in the analysis
+Unique_values = { 
+            'crop':['Maize', 'Wetland rice', 'Wheat'],
+            'water_supply':['Dryland', 'Irrigated'],
+            'c02_fertilization':['With CO2 Fertilization', 'Without CO2 Fertilization'],
+            'rcp':['RCP2.6', 'RCP4.5', 'RCP6.0', 'RCP8.5'],
+            'Province':['Anhui', 'Beijing', 'Hebei', 'Henan', 'Jiangsu', 'Shandong', 'Tianjin']
+}
+
+
+# The province in lexciographical order
+Province_names_cn_en = dict(zip(
+    ['北京市','天津市', '河北省','江苏省', '安徽省', '河南省', '山东省'],
+    ['Beijing','Tianjin', 'Hebei','Jiangsu', 'Anhui', 'Henan', 'Shandong']
+))
 
 
 # Define the number of parallel threads to use
 PARALLEY_THREADS = 32
 
-# The province in lexciographical order
-Province_names_en = ['Anhui', 'Beijing', 'Hebei', 'Henan', 'Jiangsu', 'Shandong', 'Tianjin']
-Province_names_cn_en = dict(zip(['北京市','天津市', '河北省','江苏省', '安徽省', '河南省', '山东省'],
-                      ['Beijing','Tianjin', 'Hebei','Jiangsu', 'Anhui', 'Henan', 'Shandong']))
-
 # Define the projected years
-Projection_years = list(range(2020, 2101, 5))
-
+Projection_years = list(range(2010, 2101, 5))
 
 
 # Define the full names of the GAEZ categories

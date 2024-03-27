@@ -5,3 +5,4 @@ geopandas
 glob
 requests
 tqdm
+plotnine
