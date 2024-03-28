@@ -61,7 +61,7 @@ GAEZ_columns = {
 # - GAEZ_4 use input_level == "High" because we assume the farming intensity is high in China in the future
 GAEZ_filter_con = {
     "GAEZ_4": 'variable == "Average attainable yield of current cropland" and input_level == "High"',
-    "GAEZ_5": 'variable == "Yield"' 
+    "GAEZ_5": '(variable == "Yield" or variable == "Harvested area")' 
 }
 
 GAEZ_years = {

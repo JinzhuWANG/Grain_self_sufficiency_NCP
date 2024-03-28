@@ -8,8 +8,8 @@ from tqdm.auto import tqdm
 
 sys.path.append('./')
 
-from helper_func.GAEZ_scrap import get_with_retry, headers
-from helper_func.parameters import (crops, 
+from helper_func.GAEZ_1_scrap import get_with_retry, headers
+from helper_func.parameters import (UNIQUE_VALUES, 
                                     GAEZ_filter_con, 
                                     GAEZ_columns, 
                                     GAEZ_input,
@@ -37,7 +37,7 @@ def download_GAEZ_data(GAEZ_df):
     with concurrent.futures.ThreadPoolExecutor(PARALLEY_THREADS) as executor:
         futures = []
         fpaths = []
-        for idx, row in GAEZ_df.iterrows():
+        for _, row in GAEZ_df.iterrows():
             unique_id = uuid.uuid4()
             fname = f"data/GAEZ_v4/GAEZ_tifs/{unique_id}.tif"
             url = row['download_url']
@@ -74,7 +74,9 @@ if __name__ == '__main__':
         # Select the columns
         df = df[GAEZ_columns[GAEZ]]
         # Filter the rows
-        df = df.query(f'crop in {crops} and year in {GAEZ_years[GAEZ]} and {GAEZ_filter_con[GAEZ]}')
+        filter_con = f"crop in {UNIQUE_VALUES['crop']} and year in {GAEZ_years[GAEZ]} and {GAEZ_filter_con[GAEZ]}"
+        filter_con = filter_con.replace('\'', '"')
+        df = df.query(filter_con)
         # Rename the water_supply column
         df['water_supply'] = df['water_supply'].replace(GAEZ_water_supply[GAEZ])
         # Add the GAEZ category

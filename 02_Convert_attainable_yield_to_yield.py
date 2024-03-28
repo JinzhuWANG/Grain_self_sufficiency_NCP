@@ -49,20 +49,9 @@ GAEZ_4_attain_extrapolated_mean_t_rcsopy = np.einsum('rcsoyhw,phw->rcsopy',
 
 # Compare the yield with the yearbook data
 if __name__ == '__main__':
-
-
-    # Read the yearbook data
-    wheat_yield_history = read_yearbook('data/Yearbook/Provincial_wheat_yield.csv','Wheat')
-    rice_yield_history = read_yearbook('data/Yearbook/Provincial_rice_yield.csv','Wetland rice')
-    maize_yield_history = read_yearbook('data/Yearbook/Provincial_maize_yield.csv','Maize')
-
-    # Concatenate the data, and convert kg to tonnes
-    yield_yearbook = pd.concat([wheat_yield_history, rice_yield_history, maize_yield_history], axis=0)
-    yield_yearbook['Yield (tonnes)'] = yield_yearbook['Value'] / 1000
     
-    # Save the yield_yearbook
-    yield_yearbook.to_csv('data/results/yield_yearbook.csv', index=False)
-
+    # Read the yield_yearbook
+    yield_yearbook = pd.read_csv('data/results/yield_yearbook.csv')
 
     # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
     rcp = "RCP2.6" 
