@@ -39,7 +39,7 @@ with rasterio.open('data/GAEZ_v4/Province_mask.tif', 'w', **out_meta) as mask_ds
      rasterio.open('data/GAEZ_v4/Province_mask_mean.tif', 'w', **out_meta_mean) as mask_dst_mean:
     
     # Rasterize the GeoPandas DataFrame
-    rasterized = [rasterize([(geom, 1)] , out_shape=out_shape, transform=out_transform, fill=0, all_touched=True, dtype=rasterio.ubyte) 
+    rasterized = [rasterize([(geom, 1)] , out_shape=out_shape, transform=out_transform, fill=0, all_touched=False, dtype=rasterio.ubyte) 
                   for geom in region_shp.geometry]
     
     # Update each rasterized province with the src_mask

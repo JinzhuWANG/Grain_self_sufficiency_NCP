@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 
-from helper_func.parameters import Province_names_cn_en
+from helper_func.parameters import DIM_ABBRIVATION, UNIQUE_VALUES, Province_names_cn_en
 
 
 def compute_mean_std(paths:list[str]):
@@ -75,3 +75,12 @@ def read_yearbook(path:str, crop:str, city_cn_en:dict=Province_names_cn_en):
     df = df[df['Value']!=0]
 
     return df
+
+
+# Function to convert a numpy array to a pandas dataframe
+def ndarray_to_df(in_array:np.ndarray, in_dim:str):
+    in_names = [DIM_ABBRIVATION[i] for i in in_dim]
+    out_df = pd.DataFrame(in_array.flatten(), 
+                          index=pd.MultiIndex.from_product([UNIQUE_VALUES[i] for i in in_names])).reset_index()
+    out_df.columns = in_names + ['Value']
+    return out_df

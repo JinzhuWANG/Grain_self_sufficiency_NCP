@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from helper_func import compute_mean_std, extrapolate_array
-from helper_func.parameters import GAEZ_variables, GAEZ_year_mid, Projection_years, Unique_values
+from helper_func.parameters import GAEZ_variables, GAEZ_year_mid, UNIQUE_VALUES
 
 # Compute the mean and std of attainable yield according to different climate models
 group_vars = GAEZ_variables['GAEZ_4'].copy()
@@ -55,9 +55,9 @@ GAEZ_4_df_repr = GAEZ_4_df.map(lambda x: x.shape if isinstance(x, np.ndarray) an
 # Get the height and width of the array
 array_shape = list(GAEZ_4_df['mean'][0].shape[1:])
 # Get the length of the group_vars
-len_group_vars = [len(Unique_values[i]) for i in group_vars]  # (r, c, s, o)
+len_group_vars = [len(UNIQUE_VALUES[i]) for i in group_vars]  # (r, c, s, o)
 # Get the complete shape of the array
-complete_shape = len_group_vars + [len(Projection_years)] + array_shape             # (r, c, s, o, y, h, w)
+complete_shape = len_group_vars + [len(UNIQUE_VALUES['year'])] + array_shape             # (r, c, s, o, y, h, w)
 
 # Get the numpy array of the mean and std
 GAEZ_4_array_mean = np.stack(GAEZ_4_df['mean']).flatten().reshape(*complete_shape).astype(np.float16)  # (r, c, s, o, y, h, w)
@@ -67,5 +67,3 @@ GAEZ_4_array_std = np.stack(GAEZ_4_df['std']).flatten().reshape(*complete_shape)
 np.save('data/results/GAEZ_4_attain_extrapolated_mean_rcsoyhw.npy', GAEZ_4_array_mean)
 np.save('data/results/GAEZ_4_attain_extrapolated_std_rcsoyhw.npy', GAEZ_4_array_std)
 
-# # Save the results
-# GAEZ_4_df.to_pickle('data/results/GAEZ_4_extrapolated.pkl')

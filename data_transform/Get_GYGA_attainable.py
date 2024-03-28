@@ -1,7 +1,7 @@
 from itertools import product
 import pandas as pd
 import plotnine
-from helper_func.parameters import Unique_values
+from helper_func.parameters import UNIQUE_VALUES
 
 # read GYGA (global yield gap atlas) data
 GYGA = pd.read_csv('data/GYGA/GygaChina_Crop_potential_yield.csv')
@@ -21,7 +21,7 @@ GYGA['water_supply'] = GYGA['CROP'].apply(lambda x:x.split(' ')[0].strip())
 
 
 # filter the rows that area in the research provinces
-GYGA = GYGA[GYGA['Province'].isin(Unique_values['Province'])].reset_index(drop=True)
+GYGA = GYGA[GYGA['Province'].isin(UNIQUE_VALUES['Province'])].reset_index(drop=True)
 # remove unnucessay cols
 GYGA = GYGA[['Province','crop','water_supply','YW','YP']]
 
