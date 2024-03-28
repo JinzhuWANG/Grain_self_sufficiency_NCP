@@ -2,6 +2,8 @@
 GAEZ_input = ['GAEZ_4',
               'GAEZ_5']
 
+# The base year 
+BASE_YR = 2020
 
 # Define the  crops, water_supply, and c02_fertilization used in the analysis
 UNIQUE_VALUES = { 
@@ -87,7 +89,7 @@ GAEZ_water_supply = {
 
 GAEZ_variables ={
     'GAEZ_4': ["year", "model", "rcp", "crop", "water_supply", "c02_fertilization"],
-    'GAEZ_5': ["year", "crop", "water_supply"]
+    'GAEZ_5': ["year", "crop", "water_supply", 'variable']
 }
 
 

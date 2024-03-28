@@ -54,6 +54,8 @@ diff_PY_2010_rcsohw = np.einsum('pcsro,phw->rcsohw', diff_PY_2010_pcsro, mask)  
 # Add the difference to all GAEZ_attainable_yield_t
 GAEZ_PY_mean_t_GYGA_rcsoyhw = GAEZ_PY_mean_t_rcsoyhw + diff_PY_2010_rcsohw[:,:,:,:,None,:,:,]           # (r, c, s, o, y, h, w)
 
+
+
 # Save the GAEZ_PY_mean_t_GYGA_rcsoyhw
 np.save('data/results/GAEZ_PY_mean_t_GYGA_rcsoyhw.npy', GAEZ_PY_mean_t_GYGA_rcsoyhw.astype(np.float16))
 
