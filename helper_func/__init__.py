@@ -78,11 +78,22 @@ def read_yearbook(path:str, crop:str, city_cn_en:dict=Province_names_cn_en):
 
 
 # Function to convert a numpy array to a pandas dataframe
-def ndarray_to_df(in_array:np.ndarray, in_dim:str):
+def ndarray_to_df(in_array:np.ndarray, in_dim:str, year_start:int=2020):
+    
+    # Check if "y" included in the in_dim
+    if 'y' in in_dim:
+        if year_start == 2010:
+            DIM_ABBRIVATION['y'] = 'attainable_year'
+        elif year_start == 2020:
+            DIM_ABBRIVATION['y'] = 'simulation_year'
+        
     in_names = [DIM_ABBRIVATION[i] for i in in_dim]
+    
     out_df = pd.DataFrame(in_array.flatten(), 
                           index=pd.MultiIndex.from_product([UNIQUE_VALUES[i] for i in in_names])).reset_index()
+    
     out_df.columns = in_names + ['Value']
+    
     return out_df
 
 

@@ -57,7 +57,7 @@ if __name__ == '__main__':
     rcp = "RCP2.6" 
     c02_fertilization = "With CO2 Fertilization"
 
-    GAEZ_4_attain_extrapolated_mean_t_rcsopy_df = ndarray_to_df(GAEZ_4_attain_extrapolated_mean_t_rcsopy, 'rcsopy')
+    GAEZ_4_attain_extrapolated_mean_t_rcsopy_df = ndarray_to_df(GAEZ_4_attain_extrapolated_mean_t_rcsopy, 'rcsopy', year_start=2010)
     GAEZ_4_attain_extrapolated_mean_t_rcsopy_df['Yield (tonnes)'] = GAEZ_4_attain_extrapolated_mean_t_rcsopy_df['Value']
     GAEZ_4_attain_extrapolated_mean_t_copy_df = GAEZ_4_attain_extrapolated_mean_t_rcsopy_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
 
@@ -69,10 +69,9 @@ if __name__ == '__main__':
     g = (
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_4_attain_extrapolated_mean_t_copy_df,
-                        plotnine.aes(x='year', y='Yield (tonnes)', color='water_supply')) +
+                        plotnine.aes(x='attainable_year', y='Yield (tonnes)', color='water_supply')) +
         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
-        plotnine.theme_minimal() +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
     )
 

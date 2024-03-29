@@ -25,7 +25,7 @@ GYGA_PY_2010_pcs = GYGA_PY_2010['yield_potential'].values.reshape(*unique_val_GY
 
 # Read the GAEZ attainable yield data
 GAEZ_PY_mean_t_rcsoyhw = np.load('data/results/GAEZ_4_attain_extrapolated_mean_t_rcsoyhw.npy')          # (r, c, s, o, y, h, w)
-GAEZ_PY_2010_rcsohw = GAEZ_PY_mean_t_rcsoyhw[:, :, :, :, UNIQUE_VALUES['year'].index(2010), :, :]       # (r, c, s, o, h, w)
+GAEZ_PY_2010_rcsohw = GAEZ_PY_mean_t_rcsoyhw[:, :, :, :, UNIQUE_VALUES['attainable_year'].index(2010), :, :]       # (r, c, s, o, h, w)
 
 # Read the mean mask
 with rasterio.open('data/GAEZ_v4/Province_mask_mean.tif') as src:
@@ -68,7 +68,7 @@ GAEZ_PY_2010_mean_pcsro_df = ndarray_to_df(GAEZ_PY_2010_mean_pcsro, 'pcsro')
 diff_PY_2010_pcsro_df = ndarray_to_df(diff_PY_2010_pcsro, 'pcsro')
 
 GAEZ_PY_mean_t_GYGA_rcsoyp = np.einsum('rcsoyhw,phw->rcsoyp', GAEZ_PY_mean_t_GYGA_rcsoyhw, mask_mean)   # (r, c, s, o, y, p)
-GAEZ_PY_mean_t_GYGA_rcsoyp_df = ndarray_to_df(GAEZ_PY_mean_t_GYGA_rcsoyp, 'rcsoyp')
+GAEZ_PY_mean_t_GYGA_rcsoyp_df = ndarray_to_df(GAEZ_PY_mean_t_GYGA_rcsoyp, 'rcsoyp', year_start=2010)
 GAEZ_PY_mean_t_GYGA_rcsoyp_df['Yield (tonnes)'] = GAEZ_PY_mean_t_GYGA_rcsoyp_df['Value']
 
 
@@ -108,10 +108,9 @@ if __name__ == '__main__':
     g = (
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_PY_mean_t_GYGA_csoyp_df,
-                        plotnine.aes(x='year', y='Yield (tonnes)', color='water_supply', linetype='c02_fertilization' )) +
+                        plotnine.aes(x='attainable_year', y='Yield (tonnes)', color='water_supply', linetype='c02_fertilization' )) +
         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
-        plotnine.theme_minimal() +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
     )
     
