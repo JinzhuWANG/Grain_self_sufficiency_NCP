@@ -4,6 +4,7 @@ GAEZ_input = ['GAEZ_4',
 
 # The base year 
 BASE_YR = 2020
+TARGET_YR = 2100
 
 # Define the  crops, water_supply, and c02_fertilization used in the analysis
 UNIQUE_VALUES = { 
@@ -12,7 +13,8 @@ UNIQUE_VALUES = {
             'c02_fertilization':['With CO2 Fertilization', 'Without CO2 Fertilization'],
             'rcp':['RCP2.6', 'RCP4.5', 'RCP6.0', 'RCP8.5'],
             'Province':['Anhui', 'Beijing', 'Hebei', 'Henan', 'Jiangsu', 'Shandong', 'Tianjin'],
-            'year':list(range(2010, 2101, 5))
+            'attainable_year':list(range(2010, 2101, 5)),
+            'simulation_year':list(range(BASE_YR, 2101, 5))
 }
 
 DIM_ABBRIVATION = {'c':'crop', 
@@ -22,7 +24,7 @@ DIM_ABBRIVATION = {'c':'crop',
                    'p':'Province', 
                    'h':'height', 
                    'w':'width',
-                   'y':'year'}
+                   'y':'simulation_year'}
 
 
 # The province in lexciographical order

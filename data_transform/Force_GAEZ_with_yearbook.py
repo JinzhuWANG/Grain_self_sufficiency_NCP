@@ -5,20 +5,20 @@ import rasterio
 from helper_func.parameters import UNIQUE_VALUES, GAEZ_variables, GAEZ_water_supply
 
 
-def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', variable:str = None):
+def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harvested area'):
 
     # Read the GAEZ_df which records the metadata of the GAEZ data path
     GAEZ_df = pd.read_csv(in_path)
-    GAEZ_df = GAEZ_df.query(f'GAEZ == "GAEZ_5" and variable == @variable')    
-    GAEZ_df = GAEZ_df.replace(GAEZ_water_supply['GAEZ_5']).infer_objects(copy=False)
+    GAEZ_df = GAEZ_df.query(f'GAEZ == "GAEZ_5" and variable == @var_type')    
+    GAEZ_df = GAEZ_df.replace(GAEZ_water_supply['GAEZ_5'])
     GAEZ_df = GAEZ_df[GAEZ_variables['GAEZ_5'] + ['fpath']]
     GAEZ_df = GAEZ_df.sort_values(by=['crop', 'water_supply']).reset_index(drop=True)
 
 
     # Change the mask type based on variable type
-    if variable == 'Harvested area':
+    if var_type == 'Harvested area':
         mask_base = 'Province_mask'  
-    elif  variable == 'Yield':
+    elif  var_type == 'Yield':
         mask_base = 'Province_mask_mean'
     else:
         raise ValueError('variable must be either "Harvested area" or "Province_mask"')
@@ -44,6 +44,7 @@ def get_each_and_total_value(GAEZ_df:pd.DataFrame, variable:str, mask:np.ndarray
     if variable == 'Yield':
         GAEZ_crop_ratio_pcs = np.load('data/results/GAEZ_crop_ratio_pcs.npy')                                      # (p, c, s)
         GAEZ_arr_weighted_cshw = np.einsum('cshw,pcs->cshw', GAEZ_arr_cshw, GAEZ_crop_ratio_pcs)                   # (p, c, s, h, w)
+        GAEZ_arr_weighted_cshw = GAEZ_arr_weighted_cshw / len(UNIQUE_VALUES['Province'])                           # (p, c, s, h, w)
     elif variable == 'Harvested area':
         GAEZ_arr_weighted_cshw = GAEZ_arr_cshw
     else:
@@ -51,23 +52,23 @@ def get_each_and_total_value(GAEZ_df:pd.DataFrame, variable:str, mask:np.ndarray
 
 
     # Compute the total value of the variable
-    GAEZ_arr_total_chw = np.einsum('cshw->chw', GAEZ_arr_weighted_cshw)                              # (c, h, w)
+    GAEZ_arr_total_pc = np.einsum('cshw,phw->pc', GAEZ_arr_weighted_cshw, mask)                              # (c, h, w)
     
-    return GAEZ_arr_cshw, GAEZ_arr_total_chw
+    return GAEZ_arr_cshw, GAEZ_arr_total_pc
+
+
 
 
 def force_GAEZ_with_yearbook(GAEZ_arr_individual_cshw:np.ndarray, 
-                             GAEZ_arr_total_chw:np.ndarray, 
+                             GAEZ_arr_total_pc:np.ndarray, 
                              yearbook_targ_pc:np.ndarray, 
                              mask:np.ndarray):
 
-    # Sum up all pixels for each province
-    GAEZ_arr_total_pc = np.einsum('chw,phw -> pc', GAEZ_arr_total_chw, mask)                # (p, c)
 
     # Compare the defference (ratio) between yearbook and GAEZ
-    diff_pc = yearbook_targ_pc / GAEZ_arr_total_pc                                          # (p, c)
-                                                                                    
+    diff_pc = yearbook_targ_pc / GAEZ_arr_total_pc                                          # (p, c)                                                                              
     # Apply the diff to GAEZ_area_cshw
     GAEZ_base_yr_pcshw = np.einsum('pc,cshw->pcshw', diff_pc, GAEZ_arr_individual_cshw)     # (p, c, s, h, w)
     
-    return  GAEZ_base_yr_pcshw
+    
+    return  diff_pc, GAEZ_base_yr_pcshw

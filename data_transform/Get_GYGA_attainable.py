@@ -65,13 +65,19 @@ merged['yield_potential'] = merged['yield_potential'].fillna(0)
 merged.to_csv('data/GYGA/GYGA_attainable_filled.csv',index=False)
 
 
-# plot the filled GYGA data
-plotnine.options.figure_size = (10, 5)
-plotnine.options.dpi = 100
 
-g = (plotnine.ggplot(merged,plotnine.aes(x='Province',y='yield_potential')) +
- plotnine.geom_boxplot() +
- plotnine.facet_grid('water_supply~crop') +
- plotnine.theme_bw(base_size=11) +
- plotnine.theme(axis_text_x=plotnine.element_text(rotation=60))
-)
+
+# Sanity check
+if __name__ == '__main__':
+
+
+    # plot the filled GYGA data
+    plotnine.options.figure_size = (10, 5)
+    plotnine.options.dpi = 100
+
+    g = (plotnine.ggplot(merged,plotnine.aes(x='Province',y='yield_potential')) +
+    plotnine.geom_boxplot() +
+    plotnine.facet_grid('water_supply~crop') +
+    plotnine.theme_bw(base_size=11) +
+    plotnine.theme(axis_text_x=plotnine.element_text(rotation=60))
+    )

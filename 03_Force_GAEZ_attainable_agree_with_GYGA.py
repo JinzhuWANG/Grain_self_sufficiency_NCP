@@ -87,7 +87,7 @@ if __name__ == '__main__':
                                     UNIQUE_VALUES['crop'].index(crop), 
                                     UNIQUE_VALUES['water_supply'].index(water_supply), 
                                     UNIQUE_VALUES['c02_fertilization'].index(c02_fertilization),
-                                    UNIQUE_VALUES['year'].index(year),  
+                                    UNIQUE_VALUES['attainable_year'].index(year),  
                                     :,
                                     :]
     
