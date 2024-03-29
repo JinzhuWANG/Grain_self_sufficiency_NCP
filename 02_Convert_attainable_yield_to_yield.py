@@ -26,7 +26,7 @@ GAEZ_4_attain_extrapolated_std_t_rcsoyhw = GAEZ_4_attain_extrapolated_std_kg_rcs
 
 # Save the results
 np.save('data/results/GAEZ_4_attain_extrapolated_mean_t_rcsoyhw.npy', GAEZ_4_attain_extrapolated_mean_t_rcsoyhw)
-np.save('data/results/GAEZ_4_attain_extrapolated_mean_t_rcsoyhw.npy', GAEZ_4_attain_extrapolated_mean_t_rcsoyhw)
+np.save('data/results/GAEZ_4_attain_extrapolated_std_t_rcsoyhw.npy', GAEZ_4_attain_extrapolated_std_t_rcsoyhw)
 
 
 
@@ -50,8 +50,8 @@ GAEZ_4_attain_extrapolated_mean_t_rcsopy = np.einsum('rcsoyhw,phw->rcsopy',
 # Compare the yield with the yearbook data
 if __name__ == '__main__':
     
-    # Read the yield_yearbook
-    yield_yearbook = pd.read_csv('data/results/yield_yearbook.csv')
+    # Read the yearbook_yield
+    yearbook_yield = pd.read_csv('data/results/yearbook_yield.csv')
 
     # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
     rcp = "RCP2.6" 
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_4_attain_extrapolated_mean_t_copy_df,
                         plotnine.aes(x='year', y='Yield (tonnes)', color='water_supply')) +
-        plotnine.geom_point(yield_yearbook, plotnine.aes(x='year', y='Yield (tonnes)')) +
+        plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
         plotnine.theme_minimal() +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))

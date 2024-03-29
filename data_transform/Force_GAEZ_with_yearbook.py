@@ -70,4 +70,4 @@ def force_GAEZ_with_yearbook(GAEZ_arr_individual_cshw:np.ndarray,
     # Apply the diff to GAEZ_area_cshw
     GAEZ_base_yr_pcshw = np.einsum('pc,cshw->pcshw', diff_pc, GAEZ_arr_individual_cshw)     # (p, c, s, h, w)
     
-    return diff_pc, GAEZ_base_yr_pcshw
+    return  GAEZ_base_yr_pcshw

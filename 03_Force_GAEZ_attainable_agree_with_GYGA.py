@@ -98,7 +98,7 @@ if __name__ == '__main__':
     
     
     # Read yield book
-    yield_yearbook = pd.read_csv('data/results/yield_yearbook.csv')
+    yearbook_yield = pd.read_csv('data/results/yearbook_yield.csv')
     # Read the GAEZ yield for specific rcp
     GAEZ_PY_mean_t_GYGA_csoyp_df = GAEZ_PY_mean_t_GYGA_rcsoyp_df.query(f"rcp == '{rcp}'")
       
@@ -109,7 +109,7 @@ if __name__ == '__main__':
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_PY_mean_t_GYGA_csoyp_df,
                         plotnine.aes(x='year', y='Yield (tonnes)', color='water_supply', linetype='c02_fertilization' )) +
-        plotnine.geom_point(yield_yearbook, plotnine.aes(x='year', y='Yield (tonnes)')) +
+        plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
         plotnine.theme_minimal() +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
