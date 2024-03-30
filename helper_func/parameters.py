@@ -5,6 +5,7 @@ GAEZ_input = ['GAEZ_4',
 # The base year 
 BASE_YR = 2020
 TARGET_YR = 2100
+PRED_STEP = 5
 
 # Define the  crops, water_supply, and c02_fertilization used in the analysis
 UNIQUE_VALUES = { 

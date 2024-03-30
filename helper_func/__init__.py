@@ -2,8 +2,14 @@
 import numpy as np
 import pandas as pd
 import rasterio
+import statsmodels.api as sm
 
-from helper_func.parameters import DIM_ABBRIVATION, UNIQUE_VALUES, Province_names_cn_en
+from helper_func.parameters import (BASE_YR, 
+                                    TARGET_YR,
+                                    PRED_STEP,
+                                    DIM_ABBRIVATION, 
+                                    UNIQUE_VALUES,
+                                    Province_names_cn_en)
 
 
 def compute_mean_std(paths:list[str]):
@@ -97,4 +103,24 @@ def ndarray_to_df(in_array:np.ndarray, in_dim:str, year_start:int=2020):
     return out_df
 
 
+def fit_linear_model(df):
+    
+    # Fit a linear model to the data
+    X = df['year']
+    y = df['Yield (tonnes)']
+    X = sm.add_constant(X)
+    model = sm.OLS(y, X).fit()
+    
+    # Extrapolate the model to from <BASE_YR> to <TARGET_YR>
+    pred_years = pd.DataFrame({'year': range(BASE_YR, TARGET_YR + 1, PRED_STEP)})
+    pred_years = sm.add_constant(pred_years)
+    
+    extrapolate_df = model.get_prediction(pred_years)
+    extrapolate_df = extrapolate_df.summary_frame(alpha=0.05)
+    
+    extrapolate_df['std'] = (extrapolate_df['obs_ci_upper'] - extrapolate_df['obs_ci_lower']) / (2 * 1.96)
+    extrapolate_df['year'] = pred_years['year']
+    extrapolate_df = extrapolate_df[['year','mean', 'std','obs_ci_upper','obs_ci_lower']]
 
+
+    return extrapolate_df
