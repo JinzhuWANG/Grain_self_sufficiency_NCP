@@ -63,6 +63,8 @@ GAEZ_yield_base_target_prcsoyhw = np.einsum('pcshw, rcsoyhw -> prcsoyhw',
                                             GAEZ_attain_yield_mean_multiplier_rcsoyhw)    # (p, r, c, s, o, y, h, w)
 
 
+# Save the result
+np.save('data/results/GAEZ_yield_base_target_prcsoyhw.npy', GAEZ_yield_base_target_prcsoyhw)
 
 
 # Sanity Check
