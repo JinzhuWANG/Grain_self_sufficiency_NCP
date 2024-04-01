@@ -140,14 +140,15 @@ def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 1, 
     std = np.expand_dims(std, 0).astype(np.float16)
     
     # Get the chunk shape
-    chunk_shape = (size,) + mean.shape[1:-2] + tuple(dim//resfactor for dim in mean.shape[-2:])
-
-    # Convert mean and std arrays to Dask arrays with the specified chunk shape
+    chunk_shape = (1,) + mean.shape[1:-2] + tuple(dim//resfactor for dim in mean.shape[-2:])
+    sample_shape = (size,) + mean.shape[1:]
+    
+    # Create dask arrays
     mean_da = da.from_array(mean, chunks=chunk_shape)
     std_da = da.from_array(std, chunks=chunk_shape)
 
     # Generate samples
-    sample_arr = da.random.normal(mean_da, std_da, ).astype(np.float16)
+    sample_arr = da.random.normal(mean_da, std_da, sample_shape).astype(np.float16)
 
     # Rechunk sample_arr to have the same chunk shape as mean_da and std_da
     sample_arr = sample_arr.rechunk(chunk_shape)

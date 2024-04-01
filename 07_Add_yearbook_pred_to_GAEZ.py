@@ -46,7 +46,7 @@ yearbook_yield_std_fitted_pcyhw = np.einsum('pcy, phw -> pcyhw',
 
 # Sample from the mean and std
 yearbook_sample_npcyhw = sample_from_mean_std(yearbook_yield_mean_fitted_pcyhw, yearbook_yield_std_fitted_pcyhw, 2) # (n, p, c, y, h, w)
-GAEZ_sample_nprcsoyhw = sample_from_mean_std(GAEZ_yield_t_mean_prcsoyhw, GAEZ_yield_t_std_prcsoyhw, 2)              # (n, p, r, c, s, o, y, h, w)
+GAEZ_sample_nprcsoyhw = sample_from_mean_std(GAEZ_yield_t_mean_prcsoyhw, GAEZ_yield_t_std_prcsoyhw, 10)              # (n, p, r, c, s, o, y, h, w)
 
 
 # Expand the yearbook_sample to the same shape as GAEZ_sample
@@ -61,7 +61,9 @@ GAEZ_yield_mean_prcsoyhw = da.mean(GAEZ_yield, axis=0).compute() # (p, r, c, s, 
 GAEZ_yield_std_prcsoyhw = da.std(GAEZ_yield, axis=0).compute()   # (p, r, c, s, o, y, h, w)
 
 
-
+# Save the GAEZ_yield to a file
+np.save('data/results/GAEZ_yield_mean_prcsoyhw.npy', GAEZ_yield_mean_prcsoyhw)
+np.save('data/results/GAEZ_yield_std_prcsoyhw.npy', GAEZ_yield_std_prcsoyhw)
 
 
 
