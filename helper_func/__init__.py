@@ -1,14 +1,17 @@
 
 import numpy as np
 import pandas as pd
+import psutil
 import rasterio
+
 import statsmodels.api as sm
+import dask.array as da
 
 from helper_func.parameters import (BASE_YR, 
                                     TARGET_YR,
                                     PRED_STEP,
                                     DIM_ABBRIVATION, 
-                                    UNIQUE_VALUES,
+                                    UNIQUE_VALUES, Monte_Carlo_num,
                                     Province_names_cn_en)
 
 
@@ -124,3 +127,29 @@ def fit_linear_model(df):
 
 
     return extrapolate_df
+
+
+
+def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 1, size: int = Monte_Carlo_num):
+    
+    if not mean.shape == std.shape:
+        raise ValueError("The mean and std arrays must have the same shape")
+    
+    # Expand the mean and std arrays with an extra dimension for the samples
+    mean = np.expand_dims(mean, 0).astype(np.float16)
+    std = np.expand_dims(std, 0).astype(np.float16)
+    
+    # Get the chunk shape
+    chunk_shape = (size,) + mean.shape[1:-2] + tuple(dim//resfactor for dim in mean.shape[-2:])
+
+    # Convert mean and std arrays to Dask arrays with the specified chunk shape
+    mean_da = da.from_array(mean, chunks=chunk_shape)
+    std_da = da.from_array(std, chunks=chunk_shape)
+
+    # Generate samples
+    sample_arr = da.random.normal(mean_da, std_da, ).astype(np.float16)
+
+    # Rechunk sample_arr to have the same chunk shape as mean_da and std_da
+    sample_arr = sample_arr.rechunk(chunk_shape)
+
+    return sample_arr

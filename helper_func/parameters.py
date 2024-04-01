@@ -28,7 +28,8 @@ DIM_ABBRIVATION = {'c':'crop',
                    'p':'Province', 
                    'h':'height', 
                    'w':'width',
-                   'y':'simulation_year'}
+                   'y':'simulation_year',
+                   'n': 'Monte_Carlo_samples',}
 
 
 # The province in lexciographical order
