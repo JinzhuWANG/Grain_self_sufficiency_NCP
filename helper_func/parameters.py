@@ -10,6 +10,22 @@ PRED_STEP = 5
 # The number of Monte Carlo samples
 Monte_Carlo_num = 100
 
+# Define the number of parallel threads to use
+PARALLEY_THREADS = 32
+
+# The block size for the HDF5 file
+HDF_BLOCK_SIZE = 128
+
+
+# Raster data dictionary
+RASTER_DICT = {
+        'Farmland_2019' : 'data/LUCC/CLCD_v01_2019.tif',
+        'Urban_1990_2019' : 'data/LUCC/North_China_Plain_1990_2019.tif',
+        'Transition_potential': ['data/LUCC/Transition_Potential-0000000000-0000000000.tif',
+                                 'data/LUCC/Transition_Potential-0000046592-0000000000.tif'],
+    }
+
+
 # Define the  crops, water_supply, and c02_fertilization used in the analysis
 UNIQUE_VALUES = { 
             'crop':['Maize', 'Wetland rice', 'Wheat'],
@@ -39,8 +55,6 @@ Province_names_cn_en = dict(zip(
 ))
 
 
-# Define the number of parallel threads to use
-PARALLEY_THREADS = 32
 
 
 # Define the full names of the GAEZ categories
