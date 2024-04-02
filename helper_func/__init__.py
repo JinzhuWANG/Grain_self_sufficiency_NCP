@@ -130,7 +130,7 @@ def fit_linear_model(df):
 
 
 
-def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 1, size: int = Monte_Carlo_num):
+def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 8, size: int = Monte_Carlo_num):
     
     if not mean.shape == std.shape:
         raise ValueError("The mean and std arrays must have the same shape")

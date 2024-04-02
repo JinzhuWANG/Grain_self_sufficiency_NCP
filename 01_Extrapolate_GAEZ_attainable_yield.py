@@ -57,11 +57,20 @@ array_shape = list(GAEZ_4_df['mean'][0].shape[1:])
 # Get the length of the group_vars
 len_group_vars = [len(UNIQUE_VALUES[i]) for i in group_vars]  # (r, c, s, o)
 # Get the complete shape of the array
-complete_shape = len_group_vars + [len(UNIQUE_VALUES['attainable_year'])] + array_shape             # (r, c, s, o, y, h, w)
+complete_shape = len_group_vars + [len(UNIQUE_VALUES['attainable_year'])] + array_shape                 # (r, c, s, o, y, h, w)
 
 # Get the numpy array of the mean and std
 GAEZ_4_array_mean = np.stack(GAEZ_4_df['mean']).flatten().reshape(*complete_shape).astype(np.float16)  # (r, c, s, o, y, h, w)
 GAEZ_4_array_std = np.stack(GAEZ_4_df['std']).flatten().reshape(*complete_shape).astype(np.float16)    # (r, c, s, o, y, h, w)  
+
+# The std of Wetland rice in Dryland should be 0
+GAEZ_4_array_std[:,
+                 UNIQUE_VALUES['crop'].index('Wetland rice'),
+                 UNIQUE_VALUES['water_supply'].index('Dryland'),
+                 :,
+                 :,
+                 :,
+                 :,] = 0
 
 # Save the results
 np.save('data/results/GAEZ_4_attain_extrapolated_mean_rcsoyhw.npy', GAEZ_4_array_mean)

@@ -62,53 +62,56 @@ np.save('data/results/GAEZ_PY_mean_t_GYGA_rcsoyhw.npy', GAEZ_PY_mean_t_GYGA_rcso
 
 
 
+
 # Sanity check
-GYGA_PY_2010_pcs_df = ndarray_to_df(GYGA_PY_2010_pcs, 'pcs')
-GAEZ_PY_2010_mean_pcsro_df = ndarray_to_df(GAEZ_PY_2010_mean_pcsro, 'pcsro')
-diff_PY_2010_pcsro_df = ndarray_to_df(diff_PY_2010_pcsro, 'pcsro')
-
-GAEZ_PY_mean_t_GYGA_rcsoyp = np.einsum('rcsoyhw,phw->rcsoyp', GAEZ_PY_mean_t_GYGA_rcsoyhw, mask_mean)   # (r, c, s, o, y, p)
-GAEZ_PY_mean_t_GYGA_rcsoyp_df = ndarray_to_df(GAEZ_PY_mean_t_GYGA_rcsoyp, 'rcsoyp', year_start=2010)
-GAEZ_PY_mean_t_GYGA_rcsoyp_df['Yield (tonnes)'] = GAEZ_PY_mean_t_GYGA_rcsoyp_df['Value']
-
-
 if __name__ == '__main__':
-
-    # Plot the difference for 2010
-    rcp = 'RCP4.5'
-    crop = 'Wheat'
-    water_supply = 'Irrigated'
-    c02_fertilization = 'Without CO2 Fertilization'
-    year = 2010
-
-    # Get the difference for 2010 for all provinces
-    diff_arrary = GAEZ_PY_mean_t_GYGA_rcsoyhw[
-                                    UNIQUE_VALUES['rcp'].index(rcp), 
-                                    UNIQUE_VALUES['crop'].index(crop), 
-                                    UNIQUE_VALUES['water_supply'].index(water_supply), 
-                                    UNIQUE_VALUES['c02_fertilization'].index(c02_fertilization),
-                                    UNIQUE_VALUES['attainable_year'].index(year),  
-                                    :,
-                                    :]
-    
-    # Plot the difference
-    plt.imshow(diff_arrary)
-    
     
     
     
     # Read yield book
     yearbook_yield = pd.read_csv('data/results/yearbook_yield.csv')
-    # Read the GAEZ yield for specific rcp
-    GAEZ_PY_mean_t_GYGA_csoyp_df = GAEZ_PY_mean_t_GYGA_rcsoyp_df.query(f"rcp == '{rcp}'")
+    
+    
+    # Convert the GAEZ_PY_mean_t_GYGA_rcsoyhw to a dataframe
+    GAEZ_PY_mean_t_GYGA_rcsoyp = np.einsum('rcsoyhw,phw->rcsoyp', GAEZ_PY_mean_t_GYGA_rcsoyhw, mask_mean)   # (r, c, s, o, y, p)
+    
+    # Get the std of GAEZ_PY_mean_t_GYGA_rcsoyhw
+    GAEZ_PY_std_t_GYGA_rcsoyhw = np.load('data/results/GAEZ_4_attain_extrapolated_std_t_rcsoyhw.npy')       # (r, c, s, o, y, h, w)
+    GAEZ_PY_std_t_GYGA_rcsoyp = np.einsum('rcsoyhw,phw->rcsoyp', GAEZ_PY_std_t_GYGA_rcsoyhw, mask_mean)     # (r, c, s, o, p, y)
+    
+    GAEZ_PY_mean_t_GYGA_rcsoyp_df = ndarray_to_df(GAEZ_PY_mean_t_GYGA_rcsoyp, 'rcsoyp', year_start=2010)
+    GAEZ_PY_std_t_rcsoyp_df = ndarray_to_df(GAEZ_PY_std_t_GYGA_rcsoyp, 'rcsoyp', year_start=2010)
+    
+    GAEZ_PY_df = pd.merge(GAEZ_PY_mean_t_GYGA_rcsoyp_df, 
+                          GAEZ_PY_std_t_rcsoyp_df, 
+                          on=['rcp', 'crop', 'water_supply', 'c02_fertilization', 'attainable_year','Province'],
+                          suffixes=('_mean', '_std'))
+
+    # Filter the yield_array with specific rcp
+    rcp = 'RCP4.5'
+    GAEZ_PY_df = GAEZ_PY_df.query(f"rcp == '{rcp}'")
+    GAEZ_PY_df['obs_ci_lower'] = GAEZ_PY_df['Value_mean'] - (GAEZ_PY_df['Value_std'] * 1.96)
+    GAEZ_PY_df['obs_ci_upper'] = GAEZ_PY_df['Value_mean'] + (GAEZ_PY_df['Value_std'] * 1.96)
       
     # Plot the yield for each province of both yearbook and GAEZ
     plotnine.options.figure_size = (16, 6)
     plotnine.options.dpi = 100
     g = (
         plotnine.ggplot() +
-        plotnine.geom_line(GAEZ_PY_mean_t_GYGA_csoyp_df,
-                        plotnine.aes(x='attainable_year', y='Yield (tonnes)', color='water_supply', linetype='c02_fertilization' )) +
+        plotnine.geom_line(GAEZ_PY_df,
+                        plotnine.aes(x='attainable_year', 
+                                     y='Value_mean', 
+                                     color='water_supply', 
+                                     linetype='c02_fertilization' )
+                        ) +
+        plotnine.geom_ribbon(GAEZ_PY_df,
+                        plotnine.aes(x='attainable_year', 
+                                     ymin='obs_ci_lower', 
+                                     ymax='obs_ci_upper', 
+                                     linetype='c02_fertilization', 
+                                     fill='water_supply'),
+                        alpha=0.5
+                        ) +
         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
