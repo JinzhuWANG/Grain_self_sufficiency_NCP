@@ -6,6 +6,7 @@ import h5py
 import dask.array as da
 
 from glob import glob
+from dask.diagnostics import ProgressBar
 
 from helper_func.parameters import HDF_BLOCK_SIZE
 
@@ -79,18 +80,22 @@ def calculate_area(tif:str, output_path:str):
                 nodata=None)
     
     # Generate pixel coordinates
-    rows, cols = da.arange(height, chunks=1024*10), da.arange(width,chunks=1024*10)
+    rows, cols = da.arange(height, chunks=1024*10).astype(np.float16), da.arange(width,chunks=1024*10).astype(np.float16)
     row_coords, col_coords = da.meshgrid(rows, cols, indexing='ij')
+
+    # Calculate col_coords + 1 and row_coords + 1 once
+    col_coords_plus_one = col_coords + 1
+    row_coords_plus_one = row_coords + 1
 
     # Apply geotransform to get geographical coordinates
     # Transform (col, row) -> (x, y)
     x_coords, y_coords = transform * (col_coords, row_coords)
     xy_coords = da.stack((x_coords, y_coords), axis=0)
 
-    x_coords_right, y_coords_right = transform * (col_coords + 1, row_coords)
+    x_coords_right, y_coords_right = transform * (col_coords_plus_one, row_coords)
     xy_coords_right = da.stack((x_coords_right, y_coords_right), axis=0)
     
-    x_coords_bottom, y_coords_bottom = transform * (col_coords, row_coords + 1)
+    x_coords_bottom, y_coords_bottom = transform * (col_coords, row_coords_plus_one)
     xy_coords_bottom = da.stack((x_coords_bottom, y_coords_bottom), axis=0)
 
     # Calculate the area of each pixel
@@ -98,14 +103,22 @@ def calculate_area(tif:str, output_path:str):
     length_bottom = haversine(xy_coords, xy_coords_bottom)
     area_arry = length_right * length_bottom
 
-    # Save the area array to the output raster
-    with rasterio.open(output_path,'w', **meta) as dst:
-        for i in range(0, height, HDF_BLOCK_SIZE):
-            for j in range(0, width, HDF_BLOCK_SIZE):
-                chunk = area_arry[i:i+HDF_BLOCK_SIZE, j:j+HDF_BLOCK_SIZE].compute()
-                dst.write(chunk, 1, window=rasterio.windows.Window(j, i, chunk.shape[1], chunk.shape[0]))
-        
-        print(f"Area of {tif} calculated and saved to {output_path}")
+     # Use Dask to compute the area array in chunks
+    with ProgressBar():
+        computed_array = area_arry.compute()
+
+    # Define chunk size
+    chunk_size = (HDF_BLOCK_SIZE, HDF_BLOCK_SIZE) 
+
+    # Save the computed array to an HDF5 file with compression and specific chunk size
+    with h5py.File(output_path , 'w') as f:
+        dset = f.create_dataset('area', 
+                                data=computed_array, 
+                                compression="gzip", 
+                                compression_opts=9, 
+                                chunks=chunk_size)
+
+    print(f"Area of {tif} calculated and saved to {output_path}")
 
 
     
@@ -113,12 +126,12 @@ if __name__ == '__main__':
 
     # Calculate GAEZ_tif area
     tif = glob('data/GAEZ_v4/GAEZ_tifs/*tif')[0]
-    output_path = 'data/GAEZ_v4/GAEZ_area_km2.tif'
+    output_path = 'data/GAEZ_v4/GAEZ_area_km2.hdf5'
     calculate_area(tif, output_path)
 
     # Calculate LUCC_tif area
     hdf = 'data/LUCC/Urban_1990_2019.hdf5'
-    output_path = 'data/LUCC/LUCC_area_km2.tif'
+    output_path = 'data/LUCC/LUCC_area_km2.hdf5'
     calculate_area(hdf, output_path)
         
 
