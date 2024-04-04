@@ -40,14 +40,11 @@ def get_intersection_bounds(file_dict:dict = RASTER_DICT) -> box:
     
     # Read the tif files
     raster_ds = [read_tifs(file)[1] for file in file_dict.values()]
-    
     # Get the first file bounds
     intersection_bounds = box(*raster_ds[0].bounds)
-    
     # If there is only one file, return the bounds of the first file
     if len(raster_ds) == 1:
         return intersection_bounds
- 
     # Update the intersection bounds with the intersection of the current bounds and the bounds of each other file
     for ds in raster_ds[1:]:
         intersection_bounds = intersection_bounds.intersection(box(*ds.bounds))
@@ -61,9 +58,7 @@ def get_intersection_bounds(file_dict:dict = RASTER_DICT) -> box:
 
 def get_intersection_windows_trans(ds, intersection_box, block_size:int = HDF_BLOCK_SIZE):
     
-    
     # Get the intersection bounds of the tif files
-    intersection_box = get_intersection_bounds()
     intersection_bounds = intersection_box.bounds
     
     intersection_left = intersection_bounds[0]
@@ -116,37 +111,34 @@ def get_intersection_windows_trans(ds, intersection_box, block_size:int = HDF_BL
     intersection_transform = rasterio.transform.from_origin(intersection_bounds[0], 
                                                             intersection_bounds[3], 
                                                             ds.transform.a, 
-                                                            ds.transform.e)
+                                                            -ds.transform.e)
     
     return windows_tif, windows_hdf, intersection_transform, (intersection_box_rows, intersection_box_cols)
 
 
 
 
-def tif2hdf(tif_paths: str | list[str], save_path: str, block_size:int = HDF_BLOCK_SIZE) -> None:
+def tif2hdf(tif: str | list[str], save_path: str, block_size:int = HDF_BLOCK_SIZE) -> None:
     
+    # Get the fname of the tif file
+    fname = os.path.basename(tif)
     # read the tif paths to a dataset
-    fpath, ds = read_tifs(tif_paths)
-    
+    fpath, ds = read_tifs(tif)
     # get the intersection_box
     intersection_box = get_intersection_bounds(RASTER_DICT)
-    
     # get dataset dtype
     ds_dtype = ds.dtypes[0]
-    
     # get the intersection bounds of the tif files    
     windows_tif, windows_hdf, intersection_transform, ds_shape = get_intersection_windows_trans(ds, intersection_box)
     
     # Remove the shape of the intersection dataset
-    print(f"Intersection arrary shape: {ds_shape}")
-
+    print(f"Clip {fname} to shape: {ds_shape}")
 
     # create an hdf file for writing
     with h5py.File(save_path, mode='w') as hdf_file:
         
         # Create a dataset for the transformation list
         hdf_file.create_dataset('Transform', data=list(intersection_transform))
-        
         # Create a dataset and save the NumPy array to it
         hdf_file.create_dataset('Array', 
                                 shape=(ds.count,*ds_shape),
@@ -162,7 +154,6 @@ def tif2hdf(tif_paths: str | list[str], save_path: str, block_size:int = HDF_BLO
             
             window_hdf = windows_hdf[idx]        
             arr = ds.read(window=window_tif)
-
             # write the block arry to hdf
             hdf_file['Array'][:,
                         window_hdf[0] : window_hdf[1],

@@ -1,15 +1,27 @@
 import numpy as np
 import rasterio
+import h5py
 import geopandas as gpd
 
 from rasterio.features import rasterize
 from glob import glob
+from tqdm.auto import tqdm
+from affine import Affine
+
+from helper_func.parameters import HDF_BLOCK_SIZE
+
+
+
 
 # Read the region shapefile
 region_shp = gpd.read_file('data/Vector_boundary/North_china_Plain_Province.shp')
 region_shp = region_shp.sort_values('EN_Name').reset_index(drop=True)
 
-# Read one of the raster files to get the shape, transform, and crs
+
+
+##############################################
+# Creating mask of the GAEZ data
+##############################################
 GAEZ_tif = glob('data/GAEZ_v4/GAEZ_tifs/*.tif')[0]
 with rasterio.open(GAEZ_tif) as src:
     src_mask = src.read(1) > 0 # Only the pixels with values > 0 are valid
@@ -55,3 +67,49 @@ with rasterio.open('data/GAEZ_v4/Province_mask.tif', 'w', **out_meta) as mask_ds
     # Write the rasterized data to the raster file
     mask_dst.write(rasterized.astype(bool))
     mask_dst_mean.write(mean_masks)
+
+
+
+##############################################
+# Creating mask of the LUCC data
+##############################################
+
+hdf_ds = h5py.File('data/LUCC/Urban_1990_2019.hdf5', 'r')
+hdf_arr = hdf_ds['Array']
+
+hdf_shape = hdf_arr.shape[1:]
+hdf_transform = Affine(*hdf_ds['Transform'][:])
+
+
+# Create the output dataset
+with h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'w') as mask_ds:
+    mask_arr = mask_ds.create_dataset('Array', 
+                                      shape=(len(region_shp), *hdf_shape), 
+                                      dtype=bool, 
+                                      chunks=(len(region_shp), HDF_BLOCK_SIZE, HDF_BLOCK_SIZE),
+                                      compression='gzip',
+                                      compression_opts=9)
+
+    # Calculate total iterations for tqdm
+    total_iterations = (hdf_shape[0] // HDF_BLOCK_SIZE + 1) * (hdf_shape[1] // HDF_BLOCK_SIZE + 1)
+
+    with tqdm(total=total_iterations) as pbar:
+        for i in range(0, hdf_shape[0], HDF_BLOCK_SIZE):
+            for j in range(0, hdf_shape[1], HDF_BLOCK_SIZE):
+                # Adjust the window size for the final window
+                window_height = min(HDF_BLOCK_SIZE, hdf_shape[0] - i)
+                window_width = min(HDF_BLOCK_SIZE, hdf_shape[1] - j)
+                window = rasterio.windows.Window(j, i, window_width, window_height)
+                out_transform = rasterio.windows.transform(window, hdf_transform)
+                out_shape = (window.height, window.width)
+
+                rasterized = [rasterize([(geom, 1)], out_shape=out_shape, transform=out_transform, fill=0, all_touched=False, dtype=np.uint8) 
+                              for geom in region_shp.geometry]
+
+                # Write the rasterized data to the output dataset
+                mask_arr[:, i:i+window_height, j:j+window_width] = np.stack(rasterized)
+                
+                # Update the progress bar
+                pbar.update()
+                
+                
