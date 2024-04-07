@@ -36,7 +36,7 @@ def read_tifs(tif_paths: str | list[str]) -> tuple[str, rasterio.DatasetReader]:
 
 
 
-def get_intersection_bounds(file_dict:dict = RASTER_DICT) -> box:
+def get_intersection_bounds(file_dict:dict) -> box:
     
     # Read the tif files
     raster_ds = [read_tifs(file)[1] for file in file_dict.values()]
@@ -118,14 +118,12 @@ def get_intersection_windows_trans(ds, intersection_box, block_size:int = HDF_BL
 
 
 
-def tif2hdf(tif: str | list[str], save_path: str, block_size:int = HDF_BLOCK_SIZE) -> None:
+def tif2hdf(tif: str | list[str], save_path: str, intersection_box, block_size:int = HDF_BLOCK_SIZE) -> None:
     
     # Get the fname of the tif file
     fname = os.path.basename(tif)
     # read the tif paths to a dataset
     fpath, ds = read_tifs(tif)
-    # get the intersection_box
-    intersection_box = get_intersection_bounds(RASTER_DICT)
     # get dataset dtype
     ds_dtype = ds.dtypes[0]
     # get the intersection bounds of the tif files    
@@ -169,8 +167,18 @@ def tif2hdf(tif: str | list[str], save_path: str, block_size:int = HDF_BLOCK_SIZ
 if __name__ == '__main__':
 
     for key, val in RASTER_DICT.items():
-        tif2hdf(val, f"data/LUCC/{key}.hdf5")
+        tif2hdf(val, f"data/LUCC/{key}.hdf5", get_intersection_bounds(RASTER_DICT))
+        
+        
+    # # Test datasets
+    # small_ds = {'CLCD_v01_2019_small': 'data/LUCC/CLCD_v01_2019_small.tif',
+    #             'Urban_1990_2019_small': 'data/LUCC/Urban_1990_2019_small.tif',
+    #             'Transition_potential_small': 'data/LUCC/Transition_potential_small.tif'}
     
+    # for key, val in small_ds.items():
+    #     tif2hdf(val, f"data/LUCC/{key}.hdf5", get_intersection_bounds(small_ds))
+                
+                
 
     
         

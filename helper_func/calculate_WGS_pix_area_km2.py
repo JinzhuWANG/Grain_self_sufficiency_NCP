@@ -52,6 +52,7 @@ def get_meta(tif:str):
                 'crs': CRS.from_epsg(4326),
                 'transform': None}
         with h5py.File(tif, 'r') as f:
+            # Assuming the Array is of shape (:, height, width)
             meta['width'] = f['Array'].shape[2]
             meta['height'] = f['Array'].shape[1]
             meta['dtype'] = f['Array'].dtype
@@ -80,7 +81,7 @@ def calculate_area(tif:str, output_path:str):
                 nodata=None)
     
     # Generate pixel coordinates
-    rows, cols = da.arange(height, chunks=1024*10).astype(np.float16), da.arange(width,chunks=1024*10).astype(np.float16)
+    rows, cols = da.arange(height, chunks=HDF_BLOCK_SIZE), da.arange(width,chunks=HDF_BLOCK_SIZE)
     row_coords, col_coords = da.meshgrid(rows, cols, indexing='ij')
 
     # Calculate col_coords + 1 and row_coords + 1 once
@@ -92,9 +93,10 @@ def calculate_area(tif:str, output_path:str):
     x_coords, y_coords = transform * (col_coords, row_coords)
     xy_coords = da.stack((x_coords, y_coords), axis=0)
 
+    # Reuse col_coords_plus_one and row_coords_plus_one
     x_coords_right, y_coords_right = transform * (col_coords_plus_one, row_coords)
     xy_coords_right = da.stack((x_coords_right, y_coords_right), axis=0)
-    
+
     x_coords_bottom, y_coords_bottom = transform * (col_coords, row_coords_plus_one)
     xy_coords_bottom = da.stack((x_coords_bottom, y_coords_bottom), axis=0)
 
@@ -103,7 +105,7 @@ def calculate_area(tif:str, output_path:str):
     length_bottom = haversine(xy_coords, xy_coords_bottom)
     area_arry = length_right * length_bottom
 
-     # Use Dask to compute the area array in chunks
+    # Use Dask to compute the area array in chunks
     with ProgressBar():
         computed_array = area_arry.compute()
 

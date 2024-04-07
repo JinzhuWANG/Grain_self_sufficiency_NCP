@@ -19,7 +19,7 @@ HDF_BLOCK_SIZE = 128
 
 # Raster data dictionary
 RASTER_DICT = {
-        'Farmland_2019' : 'data/LUCC/CLCD_v01_2019.tif',
+        'CLCD_v01_2019' : 'data/LUCC/CLCD_v01_2019.tif',
         'Urban_1990_2019' : 'data/LUCC/North_China_Plain_1990_2019.tif',
         'Transition_potential': ['data/LUCC/Transition_Potential-0000000000-0000000000.tif',
                                  'data/LUCC/Transition_Potential-0000046592-0000000000.tif'],
@@ -34,7 +34,8 @@ UNIQUE_VALUES = {
             'rcp':['RCP2.6', 'RCP4.5', 'RCP6.0', 'RCP8.5'],
             'Province':['Anhui', 'Beijing', 'Hebei', 'Henan', 'Jiangsu', 'Shandong', 'Tianjin'],
             'attainable_year':list(range(2010, 2101, 5)),
-            'simulation_year':list(range(BASE_YR, 2101, 5))
+            'simulation_year':list(range(BASE_YR, 2101, 5)),
+            'Urban_map_year':list(range(1992, 2021, 3))
 }
 
 DIM_ABBRIVATION = {'c':'crop', 
