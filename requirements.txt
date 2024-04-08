@@ -8,3 +8,4 @@ tqdm
 plotnine
 dask
 h5py
+pymc
