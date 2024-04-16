@@ -9,3 +9,4 @@ plotnine
 dask
 h5py
 pymc
+jupyter

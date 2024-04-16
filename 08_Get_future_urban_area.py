@@ -54,6 +54,7 @@ for d in area_each_province:
     # Add year to hist and pixel-val to potential
     df_hist['year'] = UNIQUE_VALUES['Urban_map_year']
     df_potential['pixel_val'] = np.arange(1, len(df_potential) + 1)
+    df_potential = df_potential.sort_values('Area_potential', ascending=False)
     # Cumsum the value
     df_hist['Area_cumsum_km2'] = df_hist['Area_hist'].cumsum()
     df_potential['Area_cumsum_km2'] = df_potential['Area_potential'].cumsum()
@@ -63,7 +64,7 @@ for d in area_each_province:
 
 # Concatenate the list to a single df
 urban_area_hist = pd.concat(df_hists)
-urban_area_potential = pd.concat(df_potentials)
+urban_area_potential = pd.concat(df_potentials).reset_index(drop=True)
 
 
 # Convert the list to a Dask array
@@ -73,6 +74,8 @@ urban_area_potential.to_csv('data/results/urban_area_potential.csv', index=False
 # Read the data
 urban_area_hist = pd.read_csv('data/results/urban_area_hist.csv')
 urban_area_potential = pd.read_csv('data/results/urban_area_potential.csv')
+
+
 
 # Sanity check
 if __name__ == '__main__':
@@ -84,6 +87,14 @@ if __name__ == '__main__':
         plotnine.geom_line() +
         plotnine.theme_bw() +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
+        )
+    
+    g = (plotnine.ggplot(urban_area_potential) +
+        plotnine.aes(x='pixel_val', y='Area_cumsum_km2', color='Province') +
+        plotnine.geom_line() +
+        plotnine.theme_bw() +
+        plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1)) +
+        plotnine.scale_x_reverse()
         )
 
 
