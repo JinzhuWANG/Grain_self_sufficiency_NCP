@@ -25,8 +25,9 @@ def tif2vir(tif_paths):
 
 
 
+
+
 def read_tifs(tif_paths: str | list[str]) -> tuple[str, rasterio.DatasetReader]:
-    fpath = ''
     # Read the tif file/s
     if isinstance(tif_paths, str):
         ds = rasterio.open(tif_paths)
@@ -41,6 +42,15 @@ def read_tifs(tif_paths: str | list[str]) -> tuple[str, rasterio.DatasetReader]:
 
 
 def get_intersection_box(file_dict:dict) -> box:
+    """
+    Calculates the intersection box and transformation for a set of raster files.
+
+    Args:
+        file_dict (dict): A dictionary containing file paths as values.
+
+    Returns:
+        tuple: A tuple containing the intersection box and transformation.
+    """
     
     # Get the bounds of each file
     raster_ds = [read_tifs(file) for file in file_dict.values()]
@@ -215,8 +225,8 @@ if __name__ == '__main__':
     # Real datasets
     tif_dict = RASTER_DICT
     
-    
-    
+
+    # Get the intersection box and transformation
     intersection_box, intersection_transform = get_intersection_box(tif_dict)
     
     for fname, tif in tif_dict.items():
