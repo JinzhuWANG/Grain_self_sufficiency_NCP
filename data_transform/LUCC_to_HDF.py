@@ -184,13 +184,13 @@ def tif2hdf(fname:str,
     ds_dtype = ds.dtypes[0]
     save_path = f'{os.path.split(tif_path)[0]}/{fname}_cliped.hdf'
 
-    
+
     # Report the shape of the intersection dataset
-    print(f"Clip {fname} to shape: {(int(intersection_rows), int(intersection_cols))}")
+    print(f"Clip {fname} to shape: {(intersection_rows, intersection_cols)}")
 
     # create an hdf file for writing
     with h5py.File(save_path, mode='w') as hdf_file:
-    
+
         # Create a dataset for the transformation list
         hdf_file.create_dataset('Transform', data=list(intersection_transform))
         # Create a dataset and save the NumPy array to it
@@ -209,7 +209,7 @@ def tif2hdf(fname:str,
             hdf_file['Array'][:,
                         slice(int(win_to.row_off), int(win_to.row_off) + win_to.height),
                         slice(int(win_to.col_off), int(win_to.col_off) + win_to.width)] = arr
-                        
+
     return None
 
 

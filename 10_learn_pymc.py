@@ -1,11 +1,7 @@
-from cgi import test
 import arviz as az
-from matplotlib.pylab import beta
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pymc as pm
-import xarray as xr
 import plotnine
 
 

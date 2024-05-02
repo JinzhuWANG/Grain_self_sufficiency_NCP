@@ -7,6 +7,10 @@ from rasterio.features import rasterize
 from glob import glob
 from tqdm.auto import tqdm
 from affine import Affine
+from joblib import Parallel, delayed
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed
+from itertools import product
 
 from helper_func.parameters import HDF_BLOCK_SIZE
 
@@ -80,36 +84,50 @@ hdf_arr = hdf_ds['Array']
 hdf_shape = hdf_arr.shape[1:]
 hdf_transform = Affine(*hdf_ds['Transform'][:])
 
+process_chunk_size = HDF_BLOCK_SIZE * 20
+
+# Get the top left corners of the windows
+windows_starts = list(
+    product(
+        range(0, hdf_shape[0], process_chunk_size),
+        range(0, hdf_shape[1], process_chunk_size),
+    )
+)
+
 
 # Create the output dataset
 with h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'w') as mask_ds:
     mask_arr = mask_ds.create_dataset('Array', 
-                                      shape=(len(region_shp), *hdf_shape), 
-                                      dtype=bool, 
-                                      chunks=(len(region_shp), HDF_BLOCK_SIZE, HDF_BLOCK_SIZE),
-                                      compression='gzip',
-                                      compression_opts=9)
+                                    shape=hdf_shape, 
+                                    dtype=np.uint8, 
+                                    chunks=(HDF_BLOCK_SIZE, HDF_BLOCK_SIZE),
+                                    compression='gzip',
+                                    compression_opts=9)
+    
 
-    # Calculate total iterations for tqdm
-    total_iterations = (hdf_shape[0] // HDF_BLOCK_SIZE + 1) * (hdf_shape[1] // HDF_BLOCK_SIZE + 1)
+    for row, col in tqdm(windows_starts, total=len(windows_starts)):
+        # Adjust the window size for the final window
+        window_height = min(process_chunk_size, hdf_shape[0] - row)
+        window_width = min(process_chunk_size, hdf_shape[1] - col)
+        window_shape = (window_height, window_width)
+        window = rasterio.windows.Window(col, row, window_width, window_height)
+        out_transform = rasterio.windows.transform(window, hdf_transform)
 
-    with tqdm(total=total_iterations) as pbar:
-        for i in range(0, hdf_shape[0], HDF_BLOCK_SIZE):
-            for j in range(0, hdf_shape[1], HDF_BLOCK_SIZE):
-                # Adjust the window size for the final window
-                window_height = min(HDF_BLOCK_SIZE, hdf_shape[0] - i)
-                window_width = min(HDF_BLOCK_SIZE, hdf_shape[1] - j)
-                window = rasterio.windows.Window(j, i, window_width, window_height)
-                out_transform = rasterio.windows.transform(window, hdf_transform)
-                out_shape = (window.height, window.width)
+        rasterized = [rasterize([(geom, idx) for idx,geom in enumerate(region_shp.geometry)], 
+                                out_shape=window_shape, 
+                                transform=out_transform, 
+                                fill=0, all_touched=False, 
+                                dtype=np.uint8)]
+        
+        
+        rasterized = np.array(rasterized).sum(axis=0)
 
-                rasterized = [rasterize([(geom, 1)], out_shape=out_shape, transform=out_transform, fill=0, all_touched=False, dtype=np.uint8) 
-                              for geom in region_shp.geometry]
+        mask_arr[row:row+window_height, col:col+window_width] = rasterized
 
-                # Write the rasterized data to the output dataset
-                mask_arr[:, i:i+window_height, j:j+window_width] = np.stack(rasterized)
-                
-                # Update the progress bar
-                pbar.update()
-                
-                
+
+
+
+
+
+
+
