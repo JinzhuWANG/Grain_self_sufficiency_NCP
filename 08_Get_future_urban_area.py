@@ -5,42 +5,55 @@ import dask.array as da
 import h5py
 import plotnine
 
-from helper_func.parameters import UNIQUE_VALUES
+from helper_func.parameters import UNIQUE_VALUES, HDF_BLOCK_SIZE
 from dask.diagnostics import ProgressBar
+
+# Define the working chunk size
+work_size = HDF_BLOCK_SIZE * 32
 
 
 # Read the lucc mask
-lucc_ds = h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'r')
-lucc_mask = da.from_array(lucc_ds['Array'], chunks=lucc_ds['Array'].chunks)
+region_ds = h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'r')
+region_arr = da.from_array(region_ds['Array'], chunks=(work_size, work_size))
 
 
 # Read the lucc area
 lucc_area_ds = h5py.File('data/LUCC/LUCC_area_km2.hdf5', 'r')
-lucc_area_area = da.from_array(lucc_area_ds['area'], chunks=lucc_area_ds['area'].chunks) 
-lucc_area_area = lucc_area_area * lucc_mask
+lucc_area_area = da.from_array(lucc_area_ds['area'], chunks=(work_size, work_size)) 
 
 
 # Read the urban data
 urban_ds = h5py.File('data/LUCC/Urban_1990_2019.hdf5', 'r')
-urban_arr = da.from_array(urban_ds['Array'], chunks=urban_ds['Array'].chunks)[0]
-urban_arr = urban_arr * lucc_mask
+urban_arr = da.from_array(urban_ds['Array'], chunks=(1,work_size, work_size))
+urban_arr = urban_arr.squeeze(0)
 
 
 # Read the urban potential data
 urban_potential_ds = h5py.File('data/LUCC/Transition_potential.hdf5', 'r')
-urban_potential_arr = da.from_array(urban_potential_ds['Array'], chunks=urban_potential_ds['Array'].chunks)
-urban_potential_arr = urban_potential_arr * lucc_mask
+urban_potential_arr = da.from_array(urban_potential_ds['Array'], chunks=(1,work_size, work_size))
+urban_potential_arr = urban_potential_arr.squeeze(0)
 
 
-area_each_province = []
-for idx, Province in enumerate(UNIQUE_VALUES['Province']):
-    with dask.config.set(**{'array.slicing.split_large_chunks': True}), ProgressBar():
-        print(f'Processing {Province}')
-        # Compute the bincount for the province and append it to the list
-        area_hist = da.bincount(urban_arr[idx].ravel(), weights=lucc_area_area[idx].ravel())
-        area_potential = da.bincount(urban_potential_arr[idx].ravel(), weights=lucc_area_area[idx].ravel())
-        area_hist, area_potential = dask.compute(area_hist, area_potential)
-        area_each_province.append({'Province': Province, 'Area_hist': area_hist[1:], 'Area_potential': area_potential[1:]})
+# Encode year and province to a single array
+year_base = 100
+urban_year_region = urban_arr * year_base + region_arr
+
+
+
+
+with ProgressBar():
+    # Compute the bincount for the province and append it to the list
+    area_hist = da.bincount(urban_year_region.ravel(), weights=lucc_area_area.ravel())
+    area_potential = da.bincount(urban_potential_arr.ravel(), weights=lucc_area_area.ravel())
+    area_hist, area_potential = dask.compute(area_hist, area_potential)
+    
+
+
+
+
+
+
+
 
 
 df_hists, df_potentials = [], []
