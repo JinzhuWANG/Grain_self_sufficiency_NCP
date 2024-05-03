@@ -1,7 +1,6 @@
 
 import numpy as np
 import pandas as pd
-import psutil
 import rasterio
 
 import statsmodels.api as sm
@@ -162,17 +161,17 @@ def fit_linear_model(df):
 
 def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 8, size: int = Monte_Carlo_num):
     
-    if not mean.shape == std.shape:
+    if mean.shape != std.shape:
         raise ValueError("The mean and std arrays must have the same shape")
-    
+
     # Expand the mean and std arrays with an extra dimension for the samples
     mean = np.expand_dims(mean, 0).astype(np.float16)
     std = np.expand_dims(std, 0).astype(np.float16)
-    
+
     # Get the chunk shape
     chunk_shape = (1,) + mean.shape[1:-2] + tuple(dim//resfactor for dim in mean.shape[-2:])
     sample_shape = (size,) + mean.shape[1:]
-    
+
     # Create dask arrays
     mean_da = da.from_array(mean, chunks=chunk_shape)
     std_da = da.from_array(std, chunks=chunk_shape)

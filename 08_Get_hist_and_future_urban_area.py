@@ -35,7 +35,7 @@ urban_potential_arr = urban_potential_arr.squeeze(0)
 
 
 # Encode year and province to a single array
-year_base = 10
+year_base = 100
 potential_base = 10000
 urban_year_region = region_arr.astype(np.uint32) * year_base + urban_arr
 urban_potential_region = region_arr.astype(np.uint32) * potential_base + urban_potential_arr.astype(np.uint32)
