@@ -11,7 +11,8 @@ from helper_func.parameters import (BASE_YR,
                                     TARGET_YR,
                                     PRED_STEP,
                                     DIM_ABBRIVATION, 
-                                    UNIQUE_VALUES, Monte_Carlo_num,
+                                    UNIQUE_VALUES, 
+                                    Monte_Carlo_num,
                                     Province_names_cn_en)
 
 
@@ -36,45 +37,46 @@ def compute_mean_std(paths:list[str]):
 def extrapolate_array(idx:tuple, in_df:pd.DataFrame, group_vars:list[str]):
     # Sort the df by year 2025, 2055, 2085
     df = in_df.sort_values('year')
-    
+
     # Linearly interpolated tif paths
     step_2025_2055 = (df.iloc[1]['mean'] - df.iloc[0]['mean'])/ (2055 - 2025)
     step_2055_2085 = (df.iloc[2]['mean'] - df.iloc[1]['mean'])/ (2085 - 2055)
-    
+
     start_2010 = df.iloc[0]['mean'] - step_2025_2055 * (2025 - 2010)
     mid_2055 = df.iloc[1]['mean']
     end_2100 = df.iloc[1]['mean'] + step_2055_2085 * (2100 - 2055)
-    
+
     mean_2010_2055 = np.linspace(start_2010, mid_2055, int((2055 - 2010)/5 + 1))
     mean_2055_2100 = np.linspace(mid_2055, end_2100, int((2100 - 2055)/5 + 1))
     mean_2010_2100 = np.concatenate([mean_2010_2055, mean_2055_2100[1:]])
-    
+
     std_2010_2055 = np.stack([df.iloc[1]['std']] * len(mean_2010_2055), axis=0)
     std_2055_2100 = np.stack([df.iloc[2]['std']] * len(mean_2055_2100), axis=0)
     std_2010_2100 = np.concatenate([std_2010_2055, std_2055_2100[1:]])
 
-    
-    # Save the interpolated mean and std
-    stats = {**dict(zip(group_vars, idx)),
-                'year': np.arange(2010, 2101, 5),
-                'mean': mean_2010_2100, 
-                'std': std_2010_2100, 
+
+    return {
+        **dict(zip(group_vars, idx)),
+        'year': np.arange(2010, 2101, 5),
+        'mean': mean_2010_2100,
+        'std': std_2010_2100,
     }
-    
-    return stats
 
 
 # function to read yearbook csv and orginize data
-def read_yearbook(path:str, crop:str, city_cn_en:dict=Province_names_cn_en):
+def read_yearbook(path:str, record_name:str=None, city_cn_en:dict=Province_names_cn_en):
 
     # read and reshape data to long format
     df = pd.read_csv(path)
     df = df.set_index('地区')
     df = df.stack().reset_index()
     df.columns = ['Province','year','Value']
-    
     df['year'] = df['year'].apply(lambda x: int(x[:4]))
-    df['crop'] = crop
+
+    if record_name in {'Wheat', 'Rice', 'Maize'}:
+        df['crop'] = record_name
+    elif record_name in {'GDP', 'population'}:
+        df['type'] = record_name
 
     # fitler df and replace CN to EN
     df = df[df['Province'].isin(city_cn_en.keys())]
@@ -82,8 +84,36 @@ def read_yearbook(path:str, crop:str, city_cn_en:dict=Province_names_cn_en):
 
     # remove 0s
     df = df[df['Value']!=0]
+    return df.sort_values(['Province','year']).reset_index(drop=True)
 
-    return df
+
+
+def read_ssp(data_path:str='data/SSP_China_data'):
+    SSP_GDP = pd.read_csv(f'{data_path}/SSP_GDP_ppp.csv')
+    SSP_Pop = pd.read_csv(f'{data_path}/SSP_Population.csv')
+
+    # get the shared cols
+    same_cols = set(SSP_GDP.columns)&set(SSP_Pop.columns)
+    same_cols = sorted(same_cols)
+    same_cols.remove('2010.1')
+    same_cols = ['Scenario'] + same_cols[:-1]
+
+    SSP_GDP = SSP_GDP[same_cols]
+    SSP_Pop = SSP_Pop[same_cols]
+
+    # reshape df to long format
+    SSP_GDP_long = SSP_GDP.set_index(['Scenario']).stack().reset_index()
+    SSP_GDP_long.columns = ['Scenario','year','GDP']
+    SSP_GDP_long['year'] = SSP_GDP_long['year'].astype('int16')
+
+    SSP_Pop_long = SSP_Pop.set_index(['Scenario']).stack().reset_index()
+    SSP_Pop_long.columns = ['Scenario','year','Population']
+    SSP_Pop_long['year'] = SSP_Pop_long['year'].astype('int16')
+    
+    return SSP_GDP_long, SSP_Pop_long
+
+
+
 
 
 # Function to convert a numpy array to a pandas dataframe

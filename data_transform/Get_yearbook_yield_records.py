@@ -26,10 +26,6 @@ yearbook_yield.to_csv('data/results/yearbook_yield.csv', index=False)
 
 
 
-
-
-
-
 # Read the yearbook data
 wheat_area_history = read_yearbook('data/Yearbook/Area_wheat.csv','Wheat')
 rice_area_history = read_yearbook('data/Yearbook/Area_rice.csv','Wetland rice')
