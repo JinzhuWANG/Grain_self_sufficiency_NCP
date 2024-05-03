@@ -1,7 +1,5 @@
-import numpy as np
 import pandas as pd
 import plotnine
-from pyparsing import col
 import statsmodels.api as sm
 
 from helper_func import read_ssp, read_yearbook
@@ -14,9 +12,11 @@ GDP_China = GDP_China.sum(axis=1).reset_index().rename(columns={'index':'year', 
 GDP_China['year'] = GDP_China['year'].astype('int16')
 GDP_China['GDP'] = GDP_China['GDP'].astype('float64')
 
-Population_China = pd.read_csv('data/Yearbook/yearbook_population_China.csv').T.drop('地区')                        # unit: 10k person
-Population_China = Population_China.sum(axis=1).reset_index().rename(columns={'index':'year', 0:'Population'})
-Population_China['year'] = Population_China['year'].astype('int16')
+
+Population_China = pd.read_excel('data/Yearbook/China_population_1980_2022.xlsx', sheet_name='统计数据')             # unit: 10k person
+Population_China = Population_China[Population_China["地区名称"] != '中国']
+Population_China = Population_China.groupby(['统计年度'])[['总人口数/万人']].sum().reset_index()
+Population_China.columns = ['year','Population']
 Population_China['Population'] = Population_China['Population'].astype('float64')
 Population_China['Population'] = Population_China['Population']/1e2                                                 # unit: million person
 
@@ -60,12 +60,16 @@ GDP_NCP['GDP2SSP'] = m.predict(sm.add_constant(GDP_NCP['Value']))
 GDP_NCP_pred['GDP2SSP'] = m.predict(sm.add_constant(GDP_NCP_pred['Value']))
 
 
-# Save GDP_NCP_pred and POP_NCP_pred to disk
+# Save df to disk
 GDP_NCP_pred = GDP_NCP_pred.drop(columns=['index','Value', 'type'])
 POP_NCP_pred = POP_NCP_pred.drop(columns=['index', 'type'])
+GDP_NCP = GDP_NCP.drop(columns=['Value','type'])
+POP_NCP = POP_NCP.drop(columns=['type'])
 
 GDP_NCP_pred.to_csv('data/results/GDP_NCP_pred.csv', index=False)
 POP_NCP_pred.to_csv('data/results/POP_NCP_pred.csv', index=False)
+GDP_NCP.to_csv('data/results/GDP_NCP.csv', index=False)
+POP_NCP.to_csv('data/results/POP_NCP.csv', index=False)
 
 
 # Sanity check
@@ -90,7 +94,7 @@ if __name__ == '__main__':
     
     # Population-China
     g = (plotnine.ggplot()
-            + plotnine.geom_point(Population_China, plotnine.aes(x='year', y='Population'))
+            + plotnine.geom_point(Population_China, plotnine.aes(x='year', y='Population'), size=0.02, color='grey')
             + plotnine.geom_line(SSP_Pop_China, plotnine.aes(x='year', y='Population', color='Scenario'))
             + plotnine.theme_bw()
     )
