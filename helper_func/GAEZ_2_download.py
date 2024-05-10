@@ -22,13 +22,14 @@ from helper_func.parameters import (UNIQUE_VALUES,
 def download_url(url, fpath):
     # Send a GET request to the URL
     response = get_with_retry(url, headers=headers)
-    
-    if response != None:
+
+    if response is None:
+        print(f"Failed to download data from {url}")
+
+    else:
         # Open the file in write mode
         with open(fpath, 'wb') as f:
             f.write(response.content)
-    else:
-        print(f"Failed to download data from {url}")
 
 
 

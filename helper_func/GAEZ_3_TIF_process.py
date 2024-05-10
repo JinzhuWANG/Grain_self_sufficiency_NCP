@@ -53,13 +53,13 @@ if __name__ == "__main__":
         GAEZ_crs = src.crs
         if GAEZ_crs != research_region_shp.crs:
             raise ValueError("The crs of the GAEZ and shp are not the same!")
-        
+
     # Clip the GAEZ data to the research region
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEY_THREADS) as executor:
-        tasks = []
-        for idx, row in GAEZ_df.iterrows():
-            tasks.append(executor.submit(clip_GAEZ, row, research_region_shp))
-            
+        tasks = [
+            executor.submit(clip_GAEZ, row, research_region_shp)
+            for idx, row in GAEZ_df.iterrows()
+        ]
         for future in tqdm(concurrent.futures.as_completed(tasks), total=len(tasks)):
             try:
                 future.result()

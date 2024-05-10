@@ -1,6 +1,9 @@
 numpy
 pandas
+openpyxl
 rasterio
+rioxarray
+rasterstats
 geopandas
 glob
 requests

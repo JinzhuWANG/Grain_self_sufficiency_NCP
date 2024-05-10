@@ -130,6 +130,11 @@ if __name__ == '__main__':
     tif = glob('data/GAEZ_v4/GAEZ_tifs/*tif')[0]
     output_path = 'data/GAEZ_v4/GAEZ_area_km2.hdf5'
     calculate_area(tif, output_path)
+    
+    # Calculate Urban_1km_1km area
+    tif = glob('data/Urban_1km_1km/clipped/*tiff')[0]
+    output_path = 'data/Urban_1km_1km/clipped/Urban_area_km2.hdf5'
+    calculate_area(tif, output_path)
 
     # Calculate LUCC_tif area
     hdf = 'data/LUCC/Urban_1990_2019.hdf5'
