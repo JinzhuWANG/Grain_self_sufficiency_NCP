@@ -10,7 +10,7 @@ def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harves
     # Read the GAEZ_df which records the metadata of the GAEZ data path
     GAEZ_df = pd.read_csv(in_path)
     GAEZ_df = GAEZ_df.query('GAEZ == "GAEZ_5" and variable == @var_type')
-    GAEZ_df = GAEZ_df.replace(GAEZ_water_supply['GAEZ_5'])
+    GAEZ_df = GAEZ_df.replace(GAEZ_water_supply['GAEZ_5']).infer_objects(copy=False)
     GAEZ_df = GAEZ_df[GAEZ_variables['GAEZ_5'] + ['fpath']]
     GAEZ_df = GAEZ_df.sort_values(by=['crop', 'water_supply']).reset_index(drop=True)
 
@@ -18,7 +18,7 @@ def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harves
     # Change the mask type based on variable type
     if var_type == 'Harvested area':
         mask_base = 'Province_mask'  
-    elif  var_type == 'Yield':
+    elif var_type == 'Yield':
         mask_base = 'Province_mask_mean'
     else:
         raise ValueError('variable must be either "Harvested area" or "Province_mask"')

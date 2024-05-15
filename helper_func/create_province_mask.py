@@ -1,5 +1,9 @@
+import chunk
 import numpy as np
+import dask.array as da
+import xarray as xr
 import rasterio
+import rioxarray
 import h5py
 import geopandas as gpd
 
@@ -7,14 +11,11 @@ from rasterio.features import rasterize
 from glob import glob
 from tqdm.auto import tqdm
 from affine import Affine
-from joblib import Parallel, delayed
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures import as_completed
 from itertools import product
 
 from helper_func.parameters import HDF_BLOCK_SIZE
 
-
+work_size = HDF_BLOCK_SIZE * 100
 
 
 # Read the region shapefile
@@ -35,18 +36,14 @@ with rasterio.open(GAEZ_tif) as src:
     out_meta = src.meta.copy()
 
 # Save the province mask
-out_meta.update({'dtype': rasterio.ubyte, 
-                 'count': len(region_shp), 
+out_meta.update({'dtype': rasterio.int8, 
+                 'count': 1, 
                  'compress': 'lzw',
-                 'nbits':1,
-                 'nodata':None})
+                 'nodata':-1})
 
 out_meta_mean = out_meta.copy()
 out_meta_mean.update({'dtype': rasterio.float32, 
-                 'count': len(region_shp), 
-                 'compress': 'lzw',
-                 'nbits':1,
-                 'nodata':None})
+                      'nodata':None})
 
 # Rasterize the province shapefile, and 
 # 1) update the rasterized data with the src_mask
@@ -55,22 +52,26 @@ with rasterio.open('data/GAEZ_v4/Province_mask.tif', 'w', **out_meta) as mask_ds
      rasterio.open('data/GAEZ_v4/Province_mask_mean.tif', 'w', **out_meta_mean) as mask_dst_mean:
     
     # Rasterize the GeoPandas DataFrame
-    rasterized = [rasterize([(geom, 1)] , out_shape=out_shape, transform=out_transform, fill=0, all_touched=False, dtype=rasterio.ubyte) 
-                  for geom in region_shp.geometry]
+    rasterized = [rasterize([(row.geometry, idx + 1)], out_shape=out_shape, transform=out_transform, fill=0, all_touched=False, dtype=rasterio.int8) 
+                  for idx,row in region_shp.iterrows()]
+    
+    mask_sum = np.array(rasterized).sum(axis=0)
+    mask_sum = mask_sum - 1
+    mask_sum = np.where(mask_sum > len(region_shp) - 1, len(region_shp) - 1, mask_sum)
     
     # Update each rasterized province with the src_mask
     mean_masks = []
-    for i in range(len(rasterized)):
-        rasterized[i] = np.where(src_mask, rasterized[i], 0)
-        mean_masks.append(rasterized[i] / np.sum(rasterized[i] > 0))
+    for mask in rasterized:
+        mask = mask * src_mask > 0
+        mean = mask / np.nansum(mask)
+        mean_masks.append(mean.astype(np.float32))
+    
+    mask_mean = np.array(mean_masks).sum(axis=0)
 
-    # Stack the rasterized data
-    rasterized = np.stack(rasterized, axis=0)
-    mean_masks = np.stack(mean_masks, axis=0)
 
-    # Write the rasterized data to the raster file
-    mask_dst.write(rasterized.astype(bool))
-    mask_dst_mean.write(mean_masks)
+    # Write the rasterized data to the first band of the raster file
+    mask_dst.write(mask_sum.astype(np.int8), 1)
+    mask_dst_mean.write(mask_mean.astype(np.float32), 1)
 
 
 
@@ -78,51 +79,30 @@ with rasterio.open('data/GAEZ_v4/Province_mask.tif', 'w', **out_meta) as mask_ds
 # Creating mask of the LUCC data
 ##############################################
 
-hdf_ds = h5py.File('data/LUCC/Urban_1990_2019.hdf5', 'r')
-hdf_arr = hdf_ds['Array']
-
-hdf_shape = hdf_arr.shape[1:]
-hdf_transform = Affine(*hdf_ds['Transform'][:])
-
-process_chunk_size = HDF_BLOCK_SIZE * 20
-
-# Get the top left corners of the windows
-windows_starts = list(
-    product(
-        range(0, hdf_shape[0], process_chunk_size),
-        range(0, hdf_shape[1], process_chunk_size),
-    )
-)
+lucc_xr = rioxarray.open_rasterio('data/LUCC/Norm_Urban_1990_2019.tif', 
+                                  chunks={'x': work_size, 'y': work_size})
 
 
-# Create the output dataset
-with h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'w') as mask_ds:
-    mask_arr = mask_ds.create_dataset('Array', 
-                                    shape=hdf_shape, 
-                                    dtype=np.uint8, 
-                                    chunks=(HDF_BLOCK_SIZE, HDF_BLOCK_SIZE),
-                                    compression='gzip',
-                                    compression_opts=9)
-    
+def rasterize_chunk(da_block, gdf):
+    """Rasterize a chunk of data."""
+    # Get the affine transform for the current chunk
+    transform = da_block.rio.transform()
 
-    for row, col in tqdm(windows_starts, total=len(windows_starts)):
-        # Adjust the window size for the final window
-        window_height = min(process_chunk_size, hdf_shape[0] - row)
-        window_width = min(process_chunk_size, hdf_shape[1] - col)
-        window_shape = (window_height, window_width)
-        window = rasterio.windows.Window(col, row, window_width, window_height)
-        out_transform = rasterio.windows.transform(window, hdf_transform)
+    # Define the shapes and values to rasterize
+    shapes = [(row.geometry, idx + 1 ) for idx, row in gdf.iterrows()]
 
-        rasterized = [rasterize([(geom, idx) for idx,geom in enumerate(region_shp.geometry)], 
-                                out_shape=window_shape, 
-                                transform=out_transform, 
-                                fill=0, all_touched=False, 
-                                dtype=np.uint8)]
-        
-        
-        rasterized = np.array(rasterized).sum(axis=0)
+    # Rasterize the shapes onto the chunk
+    rasterized = rasterize(shapes, out_shape=(len(da_block.y), len(da_block.x)), fill=0, transform=transform, dtype=np.float32)
+    rasterized = rasterized - 1
+    rasterized = np.expand_dims(rasterized, axis=0)
 
-        mask_arr[row:row+window_height, col:col+window_width] = rasterized
+    return xr.DataArray(rasterized, coords=da_block.coords, dims=da_block.dims)
+
+
+# Apply the rasterization function using map_blocks
+result = lucc_xr.map_blocks(rasterize_chunk, kwargs={'gdf': region_shp}, template=lucc_xr)
+result.rio.to_raster('data/LUCC/LUCC_Province_mask.tif', chunks={ 'x': HDF_BLOCK_SIZE, 'y': HDF_BLOCK_SIZE}, dtype=np.int8, compress='lzw')
+
 
 
 

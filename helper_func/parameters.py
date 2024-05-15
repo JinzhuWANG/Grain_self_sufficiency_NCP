@@ -17,14 +17,6 @@ PARALLEY_THREADS = 32
 HDF_BLOCK_SIZE = 128
 
 
-# Raster data dictionary
-RASTER_DICT = {
-        'CLCD_v01_2019' : 'data/LUCC/CLCD_v01_2019.tif',
-        'Urban_1990_2019' : 'data/LUCC/North_China_Plain_1990_2019.tif',
-        'Transition_potential': ['data/LUCC/Transition_Potential-0000000000-0000000000.tif',
-                                 'data/LUCC/Transition_Potential-0000046592-0000000000.tif'],
-    }
-
 
 # Define the  crops, water_supply, and c02_fertilization used in the analysis
 UNIQUE_VALUES = { 
