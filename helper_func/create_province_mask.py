@@ -1,17 +1,11 @@
-import chunk
 import numpy as np
-import dask.array as da
 import xarray as xr
 import rasterio
 import rioxarray
-import h5py
 import geopandas as gpd
 
 from rasterio.features import rasterize
 from glob import glob
-from tqdm.auto import tqdm
-from affine import Affine
-from itertools import product
 
 from helper_func.parameters import HDF_BLOCK_SIZE
 
