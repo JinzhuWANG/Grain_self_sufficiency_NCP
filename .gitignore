@@ -1,3 +1,5 @@
 # Ignore pycares files
 **/__pycache__/
 **/.vscode/**
+.pytest_cache/
+.vscode/

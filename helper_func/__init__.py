@@ -3,8 +3,10 @@ import numpy as np
 import pandas as pd
 import rasterio
 
+import rioxarray
 import statsmodels.api as sm
 import dask.array as da
+import xarray
 
 from helper_func.parameters import (BASE_YR, 
                                     TARGET_YR,
@@ -15,21 +17,21 @@ from helper_func.parameters import (BASE_YR,
                                     Province_names_cn_en)
 
 
-def compute_mean_std(paths:list[str]):
+def compute_mean_std(paths: list[str]):
     """
-    Compute the mean and std of the attainable yield for the given paths
+    Compute the mean and standard deviation of multiple raster files.
+
+    Parameters:
+    paths (list[str]): A list of file paths to the raster files.
+
+    Returns:
+    tuple: A tuple containing the mean and standard deviation as xarray DataArrays.
     """
-    # Read the tif files
-    tif_files = [rasterio.open(path) for path in paths]
-    # Compute the mean and std, replace the nodata value with 0
-    concat_arr = np.stack([np.where(tif.read(1) == tif.nodata, 0, tif.read(1)) 
-                           for tif in tif_files], axis=0)
-    # Change negative values to 0
-    concat_arr[concat_arr < 0] = 0
-    
-    # Compute the mean and std
-    mean = np.mean(concat_arr, axis=0)
-    std = np.std(concat_arr, axis=0)
+
+    tif_files = [rioxarray.open_rasterio(path).expand_dims({'model': [idx]}) 
+                 for idx,path in enumerate(paths)]
+    xr = xarray.combine_by_coords(tif_files)
+    mean, std = xr.mean(dim='model'), xr.std(dim='model')
     return mean, std
 
 

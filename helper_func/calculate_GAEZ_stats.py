@@ -42,6 +42,22 @@ def get_GEAZ_layers(GAEZ_df:pd.DataFrame):
 
 
 def get_GAEZ_stats(var_type:str):
+    """
+    Calculate statistics for a given variable type (either 'Harvested area' or 'Yield') based on GAEZ data.
+
+    Parameters:
+    var_type (str): The type of variable to calculate statistics for. Must be one of ['Harvested area', 'Yield'].
+
+    Returns:
+    pandas.DataFrame: A DataFrame containing the calculated statistics for each province.
+
+    Raises:
+    ValueError: If var_type is not one of ['Harvested area', 'Yield'].
+    """
+
+    if var_type not in ['Harvested area', 'Yield']:
+        raise ValueError('variable must be either "Harvested area" or "Yield"')
+
     GAEZ_df = get_GAEZ_df(var_type = var_type)
     GAEZ_xr = get_GEAZ_layers(GAEZ_df)
 
@@ -70,40 +86,3 @@ def get_GAEZ_stats(var_type:str):
     stats_df.columns = dims + ['Province', var_type]
 
     return stats_df
-    
-
-
-
-
-def get_GAEZ_province_stats(var_type:str):
-
-    GAEZ_area_stats = get_GAEZ_stats('Harvested area').sort_values(by=['Province', 'crop', 'water_supply']).reset_index(drop=True)
-    GAEZ_area_stats['area_propotion'] = GAEZ_area_stats.groupby(['Province', 'crop'])['Harvested area'].transform(lambda x: x / x.sum())
-    GAEZ_yield_stats = get_GAEZ_stats('Yield')
-
-    # The arr need to be weighted by the area_propotion, if the arr is Yield
-    if var_type == 'Harvested area':
-        return GAEZ_area_stats.groupby(['Province', 'crop'])['Harvested area'].sum().reset_index()
-    elif var_type == 'Yield':
-        GAEZ_yield_stats = GAEZ_yield_stats.merge(GAEZ_area_stats, on=['Province', 'crop', 'water_supply'])
-        GAEZ_yield_stats['Yield_weighted'] = GAEZ_yield_stats['Yield'] * GAEZ_yield_stats['area_propotion']
-        return GAEZ_yield_stats.groupby(['Province', 'crop'])['Yield_weighted'].sum().reset_index()
-    else:
-        raise ValueError('variable must be either "Harvested area" or "Yield"')
-
-
-
-
-def force_GAEZ_with_yearbook(GAEZ_arr_individual_cshw:np.ndarray, 
-                             GAEZ_arr_total_pc:np.ndarray, 
-                             yearbook_targ_pc:np.ndarray, 
-                             mask:np.ndarray):
-
-
-    # Compare the defference (ratio) between yearbook and GAEZ
-    diff_pc = yearbook_targ_pc / GAEZ_arr_total_pc                                          # (p, c)                                                                              
-    # Apply the diff to GAEZ_area_cshw
-    GAEZ_base_yr_pcshw = np.einsum('pc,cshw->pcshw', diff_pc, GAEZ_arr_individual_cshw)     # (p, c, s, h, w)
-    
-    
-    return  diff_pc, GAEZ_base_yr_pcshw

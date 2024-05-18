@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import rioxarray
+import xarray as xr
 from tqdm.auto import tqdm
 
 from helper_func import compute_mean_std, extrapolate_array
@@ -17,20 +19,27 @@ GAEZ_4_df = GAEZ_df.query('GAEZ == "GAEZ_4" and year != "1981-2010"')       # Re
 
 
 # Group by the group_vars and compute the mean and std of attainable yield
-dfs = []
+means = []
+stds = []
 for idx, df in list(GAEZ_4_df.groupby(group_vars)):
     # Get tif paths
     tif_paths = df['fpath'].tolist()
+    attrs = dict(zip(group_vars, [[i] for i in idx]))
     # Compute the mean and std for all tifs
     mean, std = compute_mean_std(tif_paths)
-    
-    dfs.append({**dict(zip(group_vars, idx)),
-                'mean': mean, 
-                'std': std, 
-                })
-    
-# Concatenate the results
-GAEZ_4_df = pd.DataFrame(dfs)
+    means.append(mean.expand_dims(**attrs))
+    stds.append(std.expand_dims(**attrs))    
+
+
+mean_xr = xr.combine_by_coords(means)
+mean_xr = mean_xr.interp(year=range(2020,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
+
+
+
+
+
+
+
 
 
 
