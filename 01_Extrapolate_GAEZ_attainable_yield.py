@@ -4,7 +4,7 @@ import rioxarray
 import xarray as xr
 from tqdm.auto import tqdm
 
-from helper_func import compute_mean_std, extrapolate_array
+from helper_func import compute_mean_std
 from helper_func.parameters import GAEZ_variables, GAEZ_year_mid, UNIQUE_VALUES
 
 # Compute the mean and std of attainable yield according to different climate models
@@ -30,58 +30,20 @@ for idx, df in list(GAEZ_4_df.groupby(group_vars)):
     means.append(mean.expand_dims(**attrs))
     stds.append(std.expand_dims(**attrs))    
 
+# Combine the mean and std, multiply by the mask to convert the nodata to 0
+mask_GAEZ = rioxarray.open_rasterio('data/GAEZ_v4/GAEZ_mask.tif')
+mean_xr = xr.combine_by_coords(means) * mask_GAEZ
+std_xr = xr.combine_by_coords(stds) * mask_GAEZ
 
-mean_xr = xr.combine_by_coords(means)
-mean_xr = mean_xr.interp(year=range(2020,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
-
-
-
-
-
-
-
+# Interpolate the mean and std to 5 year interval
+mean_xr = mean_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
+std_xr = std_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
 
 
 
-# Remove year from the group_vars
-group_vars.remove('year')
+if __name__ == '__main__':
+    # Get the mask
+    mask_province = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 
-dfs = []
-for idx, df in tqdm(list(GAEZ_4_df.groupby(group_vars))):
-    result = extrapolate_array(idx, df, group_vars)
-    dfs.append(result)
-
-
-
-
-# Concatenate the results
-GAEZ_4_df = pd.DataFrame(dfs)
-# Sort the df by the group_vars
-GAEZ_4_df = GAEZ_4_df.sort_values(by=group_vars).reset_index(drop=True)
-# Only use array.shape for fast viewing the df
-GAEZ_4_df_repr = GAEZ_4_df.map(lambda x: x.shape if isinstance(x, np.ndarray) and len(x.shape) > 1 else x)
-
-# Get the height and width of the array
-array_shape = list(GAEZ_4_df['mean'][0].shape[1:])
-# Get the length of the group_vars
-len_group_vars = [len(UNIQUE_VALUES[i]) for i in group_vars]  # (r, c, s, o)
-# Get the complete shape of the array
-complete_shape = len_group_vars + [len(UNIQUE_VALUES['attainable_year'])] + array_shape                 # (r, c, s, o, y, h, w)
-
-# Get the numpy array of the mean and std
-GAEZ_4_array_mean = np.stack(GAEZ_4_df['mean']).flatten().reshape(*complete_shape).astype(np.float16)  # (r, c, s, o, y, h, w)
-GAEZ_4_array_std = np.stack(GAEZ_4_df['std']).flatten().reshape(*complete_shape).astype(np.float16)    # (r, c, s, o, y, h, w)  
-
-# The std of Wetland rice in Dryland should be 0
-GAEZ_4_array_std[:,
-                 UNIQUE_VALUES['crop'].index('Wetland rice'),
-                 UNIQUE_VALUES['water_supply'].index('Dryland'),
-                 :,
-                 :,
-                 :,
-                 :,] = 0
-
-# Save the results
-np.save('data/results/GAEZ_4_attain_extrapolated_mean_rcsoyhw.npy', GAEZ_4_array_mean)
-np.save('data/results/GAEZ_4_attain_extrapolated_std_rcsoyhw.npy', GAEZ_4_array_std)
-
+    # bincount the mask to get the sum for each province
+    

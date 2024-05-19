@@ -4,7 +4,7 @@ import rasterio
 from osgeo import gdal
 from shapely.geometry import box
 
-from helper_func.parameters import HDF_BLOCK_SIZE
+from helper_func.parameters import BLOCK_SIZE
 
 from rasterio.enums import Resampling
 from rasterio import shutil as rio_shutil
@@ -92,8 +92,8 @@ if __name__ == '__main__':
     warp_option = get_warp_options(files_dict.values())
     copy_option = {'compress': 'lzw',
         'tiled': True,
-        'blockxsize': HDF_BLOCK_SIZE,
-        'blockysize': HDF_BLOCK_SIZE
+        'blockxsize': BLOCK_SIZE,
+        'blockysize': BLOCK_SIZE
     }
 
     for k,v in files_dict.items():

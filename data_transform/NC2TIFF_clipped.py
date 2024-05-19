@@ -9,13 +9,13 @@ from glob import glob
 from tqdm.auto import tqdm
 from rasterio.errors import CRSError
 
-from helper_func.parameters import HDF_BLOCK_SIZE
+from helper_func.parameters import BLOCK_SIZE
 
 
 
 # Read the pix area data
 ssp_urban_pix_hdf = h5py.File('data/Urban_1km_1km/clipped/Urban_area_km2.hdf5', 'r') 
-ssp_urban_pix_km2 = da.from_array(ssp_urban_pix_hdf['area'], chunks=(HDF_BLOCK_SIZE, HDF_BLOCK_SIZE))
+ssp_urban_pix_km2 = da.from_array(ssp_urban_pix_hdf['area'], chunks=(BLOCK_SIZE, BLOCK_SIZE))
 
 
 # Function to clip the urban data

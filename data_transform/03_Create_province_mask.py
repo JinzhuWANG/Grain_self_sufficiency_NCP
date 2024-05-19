@@ -7,9 +7,9 @@ import geopandas as gpd
 from rasterio.features import rasterize
 from glob import glob
 
-from helper_func.parameters import HDF_BLOCK_SIZE
+from helper_func.parameters import BLOCK_SIZE
 
-work_size = HDF_BLOCK_SIZE * 100
+work_size = BLOCK_SIZE * 100
 
 
 # Read the region shapefile
@@ -28,6 +28,9 @@ with rasterio.open(GAEZ_tif) as src:
     out_transform = src.transform
     out_crs = src.crs
     out_meta = src.meta.copy()
+
+    with rasterio.open('data/GAEZ_v4/GAEZ_mask.tif', 'w', **out_meta) as mask_src:
+        mask_src.write(src_mask.astype(np.bool_), 1)
 
 # Save the province mask
 out_meta.update({'dtype': rasterio.int8, 
@@ -52,7 +55,8 @@ with rasterio.open('data/GAEZ_v4/Province_mask.tif', 'w', **out_meta) as mask_ds
     mask_sum = np.array(rasterized).sum(axis=0)
     mask_sum = mask_sum - 1
     mask_sum = np.where(mask_sum > len(region_shp) - 1, len(region_shp) - 1, mask_sum)
-    
+    mask_sum = mask_sum * src_mask
+
     # Update each rasterized province with the src_mask
     mean_masks = []
     for mask in rasterized:
@@ -95,7 +99,7 @@ def rasterize_chunk(da_block, gdf):
 
 # Apply the rasterization function using map_blocks
 result = lucc_xr.map_blocks(rasterize_chunk, kwargs={'gdf': region_shp}, template=lucc_xr)
-result.rio.to_raster('data/LUCC/LUCC_Province_mask.tif', chunks={ 'x': HDF_BLOCK_SIZE, 'y': HDF_BLOCK_SIZE}, dtype=np.int8, compress='lzw')
+result.rio.to_raster('data/LUCC/LUCC_Province_mask.tif', chunks={ 'x': BLOCK_SIZE, 'y': BLOCK_SIZE}, dtype=np.int8, compress='lzw')
 
 
 

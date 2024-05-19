@@ -1,14 +1,15 @@
+import chunk
 from affine import Affine
+from numpy import tile
 from pyproj import CRS
 import rasterio
-import numpy as np
 import h5py
 import dask.array as da
 
 from glob import glob
 from dask.diagnostics import ProgressBar
 
-from helper_func.parameters import HDF_BLOCK_SIZE
+from helper_func.parameters import BLOCK_SIZE
 
 
 def haversine(coord1, coord2):
@@ -38,50 +39,39 @@ def haversine(coord1, coord2):
 
 
 
-def get_meta(tif:str):
+def calculate_area(tif:str, chunk_size:int=BLOCK_SIZE):
+    """
+    Calculate the area of each pixel in a raster image.
 
-    # If the tif end with .tif/tiff, then read the tif file
-    if tif.endswith('.tif') or tif.endswith('.tiff'):
-        with rasterio.open(tif) as src:
-            meta = src.meta
-    elif tif.endswith('.hdf5'):
-        meta = {'driver': 'GTiff',
-                'dtype': None,
-                'nodata': None,
-                'count': 1,
-                'crs': CRS.from_epsg(4326),
-                'transform': None}
-        with h5py.File(tif, 'r') as f:
-            # Assuming the Array is of shape (:, height, width)
-            meta['width'] = f['Array'].shape[2]
-            meta['height'] = f['Array'].shape[1]
-            meta['dtype'] = f['Array'].dtype
-            meta['transform'] = Affine(*f['Transform'])
-    return meta
+    Parameters:
+    tif (str): The path to the raster image file.
+    chunk_size (int): The chunk size for processing the image. Default is BLOCK_SIZE.
 
-
-def calculate_area(tif:str, output_path:str):
+    Returns:
+    tuple: A tuple containing the metadata of the raster image and an array of pixel areas.
+    """
 
     # Get the meta information of the raster
-    meta = get_meta(tif)
+    with rasterio.open(tif) as src:
+        meta = src.meta.copy()
+        width, height = meta['width'], meta['height']
+        transform = meta['transform']
         
     # Check if the raster is in a geographic coordinate system
     if not meta['crs'].is_geographic:
-        raise ValueError("The raster is not in a geographic coordinate system!")
+        raise ValueError("The raster is not in a geographic coordinate (Lon/Lat) system!")
     
-    # Get raster size
-    width, height = meta['width'], meta['height']
-    # Get raster's geotransform
-    transform = meta['transform']
-    
-    # Get source metadata, and update it to match the output raster
+    # Update meta
     meta.update(compress='lzw',
                 dtype=rasterio.float32,
+                tiled=True,
+                blockxsize=BLOCK_SIZE,
+                blockysize=BLOCK_SIZE,
                 count=1,
                 nodata=None)
     
     # Generate pixel coordinates
-    rows, cols = da.arange(height, chunks=HDF_BLOCK_SIZE), da.arange(width,chunks=HDF_BLOCK_SIZE)
+    rows, cols = da.arange(height, chunks=chunk_size), da.arange(width,chunks=chunk_size)
     row_coords, col_coords = da.meshgrid(rows, cols, indexing='ij')
 
     # Calculate col_coords + 1 and row_coords + 1 once
@@ -105,41 +95,8 @@ def calculate_area(tif:str, output_path:str):
     length_bottom = haversine(xy_coords, xy_coords_bottom)
     area_arry = length_right * length_bottom
 
-    # Use Dask to compute the area array in chunks
-    with ProgressBar():
-        computed_array = area_arry.compute()
+    return meta, area_arry
 
-    # Define chunk size
-    chunk_size = (HDF_BLOCK_SIZE, HDF_BLOCK_SIZE) 
-
-    # Save the computed array to an HDF5 file with compression and specific chunk size
-    with h5py.File(output_path , 'w') as f:
-        dset = f.create_dataset('area', 
-                                data=computed_array, 
-                                compression="gzip", 
-                                compression_opts=9, 
-                                chunks=chunk_size)
-
-    print(f"Area of {tif} calculated and saved to {output_path}")
-
-
-    
-if __name__ == '__main__':
-
-    # Calculate GAEZ_tif area
-    tif = glob('data/GAEZ_v4/GAEZ_tifs/*tif')[0]
-    output_path = 'data/GAEZ_v4/GAEZ_area_km2.hdf5'
-    calculate_area(tif, output_path)
-    
-    # Calculate Urban_1km_1km area
-    tif = glob('data/Urban_1km_1km/clipped/*tiff')[0]
-    output_path = 'data/Urban_1km_1km/clipped/Urban_area_km2.hdf5'
-    calculate_area(tif, output_path)
-
-    # Calculate LUCC_tif area
-    hdf = 'data/LUCC/Urban_1990_2019.hdf5'
-    output_path = 'data/LUCC/LUCC_area_km2.hdf5'
-    calculate_area(hdf, output_path)
         
 
 

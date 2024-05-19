@@ -5,11 +5,11 @@ import dask.array as da
 import h5py
 import plotnine
 
-from helper_func.parameters import UNIQUE_VALUES, HDF_BLOCK_SIZE
+from helper_func.parameters import UNIQUE_VALUES, BLOCK_SIZE
 from dask.diagnostics import ProgressBar
 
 # Define the working chunk size
-work_size = HDF_BLOCK_SIZE * 8
+work_size = BLOCK_SIZE * 8
 
 
 # Read the lucc mask

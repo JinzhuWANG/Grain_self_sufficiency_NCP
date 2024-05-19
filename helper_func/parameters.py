@@ -14,7 +14,7 @@ Monte_Carlo_num = 100
 PARALLEY_THREADS = 32
 
 # The block size for the HDF5 file
-HDF_BLOCK_SIZE = 128
+BLOCK_SIZE = 128
 
 
 

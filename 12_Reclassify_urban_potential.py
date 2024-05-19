@@ -6,9 +6,9 @@ import rioxarray
 import xarray as xr
 
 from affine import Affine
-from helper_func.parameters import HDF_BLOCK_SIZE
+from helper_func.parameters import BLOCK_SIZE
 
-work_size = HDF_BLOCK_SIZE * 8
+work_size = BLOCK_SIZE * 8
 
 # Read data
 potential_threshold = pd.read_csv('data/results/potential_threshold.csv')
