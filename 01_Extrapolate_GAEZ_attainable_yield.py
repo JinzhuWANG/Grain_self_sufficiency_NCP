@@ -32,7 +32,7 @@ for idx, df in list(GAEZ_4_df.groupby(group_vars)):
 
 # Combine the mean and std, multiply by the mask to convert the nodata to 0
 mask_GAEZ = rioxarray.open_rasterio('data/GAEZ_v4/GAEZ_mask.tif')
-mean_xr = xr.combine_by_coords(means) * mask_GAEZ
+mean_xr = xr.combine_by_coords(means) * mask_GAEZ  # kg/ha
 std_xr = xr.combine_by_coords(stds) * mask_GAEZ
 
 # Interpolate the mean and std to 5 year interval
@@ -44,6 +44,39 @@ std_xr = std_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_v
 if __name__ == '__main__':
     # Get the mask
     mask_province = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+    GAEZ_area = rioxarray.open_rasterio('data/GAEZ_v4/GAEZ_area_km2.tif')       # km2
 
     # bincount the mask to get the sum for each province
+    mean_xr_t = mean_xr * GAEZ_area / 10                # (kg/ha) * km2 / 10 = t
     
+    # Define a function to perform bincount with weights
+    def weighted_bincount(data, weights, minlength=None):
+        return np.bincount(data.ravel(), weights=weights.ravel(), minlength=minlength)
+
+    # Apply the function using xr.apply_ufunc
+    bincount_result = xr.apply_ufunc(
+        weighted_bincount,
+        mask_province,
+        mean_xr_t,
+        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='allowed',
+        output_dtypes=[float],
+        kwargs={'minlength': int(mask_province.max().values) + 1}  # Ensure bins for all unique mask values
+    )
+
+    # Assign a name to the DataArray
+    bincount_result.name = 'bincount'
+
+    # Convert to DataFrame
+    bincount_df = bincount_result.to_dataframe().reset_index()
+    bincount_df['bin'] = bincount_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
+
+    import plotnine
+    g = (plotnine.ggplot(bincount_df.query('rcp == "RCP2.6"')) +
+         plotnine.geom_line(plotnine.aes(x='year', y='bincount',color='bin',linetype='water_supply')) +
+         plotnine.facet_grid('crop~c02_fertilization') +
+         plotnine.theme_bw()
+        )
+
