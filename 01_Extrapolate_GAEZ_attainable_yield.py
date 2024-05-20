@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import rioxarray
 import xarray as xr
-from tqdm.auto import tqdm
 
 from helper_func import compute_mean_std
 from helper_func.parameters import GAEZ_variables, GAEZ_year_mid, UNIQUE_VALUES

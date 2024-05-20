@@ -2,10 +2,8 @@ import numpy as np
 import pandas as pd
 import rioxarray as rxr
 import xarray as xr
-import rasterio
 import plotnine
 
-from helper_func import ndarray_to_df
 from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES, Attainable_conversion
                                     
@@ -90,17 +88,20 @@ if __name__ == '__main__':
     std_df['bin'] = std_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
     std_df['bincount_t/ha'] = std_df['bincount'] / 1e3               # kg/ha -> t/ha
 
-
-    # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
-    rcp = "RCP4.5" 
-    c02_fertilization = 'With CO2 Fertilization'
-
+    # Merge the mean and std DataFrames
     GAEZ_yield_df = pd.merge(
         mean_df, 
         std_df, 
         on=['rcp', 'crop', 'year', 'water_supply', 'c02_fertilization', 'bin'], 
         suffixes=('_mean', '_std'))
     
+    # Save to disk
+    save_cols = ['year', 'rcp', 'crop', 'water_supply', 'c02_fertilization', 'bin', 'bincount_t/ha_mean', 'bincount_t/ha_std']
+    GAEZ_yield_df[save_cols].to_csv('data/results/step_2_GAEZ_attainable.csv', index=False)
+    
+    # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
+    rcp = "RCP4.5" 
+    c02_fertilization = 'With CO2 Fertilization'
     GAEZ_yield_df = GAEZ_yield_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
     GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['bincount_t/ha_mean'] - (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)
     GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['bincount_t/ha_mean'] + (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)

@@ -1,6 +1,7 @@
 from itertools import product
 import pandas as pd
 import plotnine
+from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES
 
 # read GYGA (global yield gap atlas) data
@@ -60,9 +61,11 @@ merged['yield_potential'] = merged.groupby(['crop', 'water_supply'])['yield_pote
 # If there are still NaN values (i.e., some combinations of 'crop' and 'water_supply' were not present in the original DataFrame), 
 # then fill it with 0s.
 merged['yield_potential'] = merged['yield_potential'].fillna(0)
+merged = merged.replace('Rainfed', 'Dryland')
 
-# Save the filled data
-merged.to_csv('data/GYGA/GYGA_attainable_filled.csv',index=False)
+# Save the filled data, multiply the Attanin-Actual ratio (0.8)
+merged['yield_potential_adj'] = merged['yield_potential'] * 0.8
+merged.to_csv('data/results/step_3_GYGA_attainable.csv', index=False)
 
 
 
@@ -70,13 +73,16 @@ merged.to_csv('data/GYGA/GYGA_attainable_filled.csv',index=False)
 # Sanity check
 if __name__ == '__main__':
 
-
+    # Get the yearbook yield 
+    yearbook_yield = get_yearbook_yield()  
+    
     # plot the filled GYGA data
     plotnine.options.figure_size = (10, 5)
     plotnine.options.dpi = 100
 
-    g = (plotnine.ggplot(merged,plotnine.aes(x='Province',y='yield_potential')) +
-    plotnine.geom_boxplot() +
+    g = (plotnine.ggplot() +
+    plotnine.geom_boxplot(merged, plotnine.aes(x='Province',y='yield_potential_adj')) +
+    plotnine.geom_boxplot(yearbook_yield.query('year == 2010'), plotnine.aes(x='Province',y='Yield (tonnes)'), color='red',size=0.1) +
     plotnine.facet_grid('water_supply~crop') +
     plotnine.theme_bw(base_size=11) +
     plotnine.theme(axis_text_x=plotnine.element_text(rotation=60))
