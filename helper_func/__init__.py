@@ -45,7 +45,7 @@ def read_yearbook(path:str, record_name:str=None, city_cn_en:dict=Province_names
     df.columns = ['Province','year','Value']
     df['year'] = df['year'].apply(lambda x: int(x[:4]))
 
-    if record_name in {'Wheat', 'Rice', 'Maize'}:
+    if record_name in {'Wheat', 'Wetland rice', 'Maize'}:
         df['crop'] = record_name
     elif record_name in {'GDP', 'population'}:
         df['type'] = record_name

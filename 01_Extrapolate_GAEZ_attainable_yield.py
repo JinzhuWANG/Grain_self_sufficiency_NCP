@@ -40,6 +40,16 @@ mean_xr = mean_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill
 std_xr = std_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
 
 
+# Save with compression
+mean_xr.name = 'data'
+std_xr.name = 'data'
+encoding = {'data': {"compression": "gzip", "compression_opts": 9}}
+
+mean_xr.to_netcdf('data/results/step_1_GAEZ_4_attain_mean.nc', encoding=encoding, engine='h5netcdf')
+std_xr.to_netcdf('data/results/step_1_GAEZ_4_attain_std.nc', encoding=encoding, engine='h5netcdf')
+
+
+
 
 if __name__ == '__main__':
     # Get the mask

@@ -1,32 +1,33 @@
 import numpy as np
 import pandas as pd
+import rioxarray as rxr
+import xarray as xr
 import rasterio
 import plotnine
 
-from helper_func import ndarray_to_df, read_yearbook
+from helper_func import ndarray_to_df
+from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES, Attainable_conversion
                                     
 
 # Get the convertion factor for each crop <dry weight -> kg harvested>
-convesion_factor = np.array(list(Attainable_conversion.values()))                   # (c)
+convesion_factor = xr.DataArray(list(Attainable_conversion.values()), 
+                                 dims=['crop'], 
+                                 coords={'crop': list(Attainable_conversion.keys())})
 
 
-# Read the GAEZ_extrapolated_df which records the extrapolated attainable yield 
-GAEZ_4_attain_extrapolated_mean_rcsoyhw = np.load('data/results/GAEZ_4_attain_extrapolated_mean_rcsoyhw.npy')
-GAEZ_4_attain_extrapolated_std_rcsoyhw  = np.load('data/results/GAEZ_4_attain_extrapolated_std_rcsoyhw.npy')
-
-# Multiply the attainable yield by the conversion factor
-GAEZ_4_attain_extrapolated_mean_kg_rcsoyhw =  np.einsum('c,rcsoyhw->rcsoyhw', convesion_factor, GAEZ_4_attain_extrapolated_mean_rcsoyhw).astype(np.float16) 
-GAEZ_4_attain_extrapolated_std_kg_rcsoyhw =  np.einsum('c,rcsoyhw->rcsoyhw', convesion_factor, GAEZ_4_attain_extrapolated_std_rcsoyhw).astype(np.float16)
+# Read the GAEZ_extrapolated_df, multiply by the conversion factor (kg Dry weight -> kg harvested)
+GAEZ_attain_mean = xr.open_dataarray('data/results/step_1_GAEZ_4_attain_mean.nc') * convesion_factor    # kg/ha
+GAEZ_attain_std = xr.open_dataarray('data/results/step_1_GAEZ_4_attain_std.nc') *  convesion_factor     # kg/ha
 
 
-# Convert kg to tonnes
-GAEZ_4_attain_extrapolated_mean_t_rcsoyhw = GAEZ_4_attain_extrapolated_mean_kg_rcsoyhw / 1000
-GAEZ_4_attain_extrapolated_std_t_rcsoyhw = GAEZ_4_attain_extrapolated_std_kg_rcsoyhw / 1000
+# Save to disk
+GAEZ_attain_mean.name = 'data'
+GAEZ_attain_std.name = 'data'
+encoding = {'data': {"compression": "gzip", "compression_opts": 9}}
 
-# Save the results
-np.save('data/results/GAEZ_4_attain_extrapolated_mean_t_rcsoyhw.npy', GAEZ_4_attain_extrapolated_mean_t_rcsoyhw)
-np.save('data/results/GAEZ_4_attain_extrapolated_std_t_rcsoyhw.npy', GAEZ_4_attain_extrapolated_std_t_rcsoyhw)
+GAEZ_attain_mean.to_netcdf('data/results/step_2_GAEZ_4_attain_mean.nc', encoding={'data': {"compression": "gzip", "compression_opts": 9}}, engine='h5netcdf')
+GAEZ_attain_std.to_netcdf('data/results/step_2_GAEZ_4_attain_std.nc', encoding={'data': {"compression": "gzip", "compression_opts": 9}}, engine='h5netcdf')
 
 
 
@@ -35,37 +36,74 @@ np.save('data/results/GAEZ_4_attain_extrapolated_std_t_rcsoyhw.npy', GAEZ_4_atta
 if __name__ == '__main__':
     
     # Read the yearbook_yield
-    yearbook_yield = pd.read_csv('data/results/yearbook_yield.csv')
+    yearbook_yield = get_yearbook_yield()
     
-    # Read the Province_mask_mean for computing the mean statistics for each province
-    with rasterio.open('data/GAEZ_v4/Province_mask_mean.tif') as src:
-        Province_mask_mean_phw = src.read()                                                                 # (province, h, w)
+    # Get mask_province
+    mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+    mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+
+    # Compute the mean yield
+    mean_yield = GAEZ_attain_mean * mask_mean
+    std_yield = GAEZ_attain_std * mask_mean
 
 
-    # Compute the mean and std of attainable yield for each province
-    GAEZ_4_attain_extrapolated_mean_t_rcsopy = np.einsum('rcsoyhw,phw->rcsopy', 
-                                                            GAEZ_4_attain_extrapolated_mean_t_rcsoyhw, 
-                                                            Province_mask_mean_phw)                         # (r, c, s, o, p, y)
+    # Define a function to perform bincount with weights
+    def weighted_bincount(mask, weights, minlength=None):
+        return np.bincount(mask.ravel(), weights=weights.ravel(), minlength=minlength)
 
-    GAEZ_4_attain_extrapolated_std_t_rcsopy = np.einsum('rcsoyhw,phw->rcsopy',
-                                                            GAEZ_4_attain_extrapolated_std_t_rcsoyhw,
-                                                            Province_mask_mean_phw)                         # (r, c, s, o, p, y)
+    # Apply the function using xr.apply_ufunc
+    mean_yield = xr.apply_ufunc(
+        weighted_bincount,
+        mask_sum,
+        mean_yield,
+        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='allowed',
+        output_dtypes=[float],
+        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
+    )
+
+    std_yield = xr.apply_ufunc(
+        weighted_bincount,
+        mask_sum,
+        std_yield,
+        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='allowed',
+        output_dtypes=[float],
+        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
+    )
+
+
+    # Assign a name to the DataArray
+    mean_yield.name = 'bincount'
+    std_yield.name = 'bincount'
+
+    # Convert to DataFrame
+    mean_df = mean_yield.to_dataframe().reset_index()
+    mean_df['bin'] = mean_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
+    mean_df['bincount_t/ha'] = mean_df['bincount'] / 1e3             # kg/ha -> t/ha
+
+    std_df = std_yield.to_dataframe().reset_index()
+    std_df['bin'] = std_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
+    std_df['bincount_t/ha'] = std_df['bincount'] / 1e3               # kg/ha -> t/ha
+
 
     # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
     rcp = "RCP4.5" 
-    c02_fertilization = "With CO2 Fertilization"
-    
-    GAEZ_yield_mean_df = ndarray_to_df(GAEZ_4_attain_extrapolated_mean_t_rcsopy, 'rcsopy', year_start=2010)
-    GAEZ_yield_std_df = ndarray_to_df(GAEZ_4_attain_extrapolated_std_t_rcsopy, 'rcsopy', year_start=2010)
-    
-    GAEZ_yield_df = pd.merge(GAEZ_yield_mean_df, 
-                             GAEZ_yield_std_df, 
-                             on=['rcp', 'crop', 'water_supply', 'c02_fertilization', 'Province', 'attainable_year'], 
-                             suffixes=('_mean', '_std'))
+    c02_fertilization = 'With CO2 Fertilization'
+
+    GAEZ_yield_df = pd.merge(
+        mean_df, 
+        std_df, 
+        on=['rcp', 'crop', 'year', 'water_supply', 'c02_fertilization', 'bin'], 
+        suffixes=('_mean', '_std'))
     
     GAEZ_yield_df = GAEZ_yield_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
-    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['Value_mean'] - (GAEZ_yield_df['Value_std'] * 1.96)
-    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['Value_mean'] + (GAEZ_yield_df['Value_std'] * 1.96)
+    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['bincount_t/ha_mean'] - (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)
+    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['bincount_t/ha_mean'] + (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)
 
 
     # Plot the yield for each province of both yearbook and GAEZ
@@ -74,13 +112,13 @@ if __name__ == '__main__':
     g = (
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_yield_df,
-                        plotnine.aes(x='attainable_year', y='Value_mean', color='water_supply')
+                        plotnine.aes(x='year', y='bincount_t/ha_mean', color='water_supply')
                         ) +
         plotnine.geom_ribbon(GAEZ_yield_df,
-                            plotnine.aes(x='attainable_year', ymin='obs_ci_lower', ymax='obs_ci_upper', fill='water_supply'), alpha=0.5
+                            plotnine.aes(x='year', ymin='obs_ci_lower', ymax='obs_ci_upper', fill='water_supply'), alpha=0.5
                             ) +
-        plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
-        plotnine.facet_grid('crop~Province', scales='free_y') +
+        plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), size=0.02, alpha=0.3) +
+        plotnine.facet_grid('crop~bin', scales='free_y') +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
     )
 

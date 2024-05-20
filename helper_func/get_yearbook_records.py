@@ -3,7 +3,7 @@ from helper_func import read_yearbook
 
 
 def get_yearbook_yield():
-    # Read the yearbook data
+    # Read the yearbook dataWetland rice
     wheat_yield_history = read_yearbook('data/Yearbook/Provincial_wheat_yield.csv','Wheat')
     rice_yield_history = read_yearbook('data/Yearbook/Provincial_rice_yield.csv','Wetland rice')
     maize_yield_history = read_yearbook('data/Yearbook/Provincial_maize_yield.csv','Maize')
