@@ -4,7 +4,6 @@ import plotnine
 import rioxarray as rxr
 import xarray as xr
 
-from helper_func import ndarray_to_df
 from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES
 
@@ -55,17 +54,60 @@ GAEZ_std.to_netcdf('data/results/step_3_GAEZ_AY_GYGA_std.nc', encoding=encoding,
 if __name__ == '__main__':   
     # Read yield book
     yearbook_yield = get_yearbook_yield()  
-    GAEZ_mask = rxr.open_rasterio('data/GAEZ_v4/GAEZ_mask.tif')  
+    GAEZ_mask = rxr.open_rasterio('data/GAEZ_v4/GAEZ_mask.tif')
+    mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+    mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+
+    # Yield need to multiply with the mask_mean frist
+    GAEZ_mean = GAEZ_mean * mask_mean
+    GAEZ_std = GAEZ_std * mask_mean  
     
-    GAEZ_mean_df = GAEZ_mean.where(GAEZ_mask).mean(['band', 'x', 'y']).to_dataframe().reset_index()
-    GAEZ_std_df = GAEZ_std.where(GAEZ_mask).mean(['band', 'x', 'y']).to_dataframe().reset_index()
+
+    def weighted_bincount(mask, weights, minlength=None):
+        return np.bincount(mask.ravel(), weights=weights.ravel(), minlength=minlength)
+
+    # Apply the function using xr.apply_ufunc
+    GAEZ_mean_df = xr.apply_ufunc(
+        weighted_bincount,
+        mask_sum,
+        GAEZ_mean,
+        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='allowed',
+        output_dtypes=[float],
+        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
+    )
+
+    GAEZ_std_df = xr.apply_ufunc(
+        weighted_bincount,
+        mask_sum,
+        GAEZ_std,
+        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='allowed',
+        output_dtypes=[float],
+        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
+    )
+
+
+    # Merge the data
+    GAEZ_mean_df.name = 'mean'
+    GAEZ_std_df.name = 'std'
+    GAEZ_mean_df = GAEZ_mean_df.to_dataframe().reset_index()
+    GAEZ_std_df = GAEZ_std_df.to_dataframe().reset_index()
+
     GAEZ_df = GAEZ_mean_df.merge(
         GAEZ_std_df, 
-        on=['year', 'crop', 'water_supply', 'rcp', 'c02_fertilization'],
-        suffixes=('_mean', '_std'))
+        on=['year', 'crop', 'water_supply', 'rcp', 'c02_fertilization', 'bin'],
+        suffixes=('_mean', '_std')
+        )
     
-    GAEZ_df['Value_mean'] = GAEZ_df['GAEZ2GYGA_mul_mean'] / 1e3     # kg/ha -> t/ha
-    GAEZ_df['Value_std'] = GAEZ_df['GAEZ2GYGA_mul_std'] / 1e3       # kg/ha -> t/ha
+    GAEZ_df['Province'] = GAEZ_df['bin'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+
+    GAEZ_df['Value_mean'] = GAEZ_df['mean'] / 1e3     # kg/ha -> t/ha
+    GAEZ_df['Value_std'] = GAEZ_df['std'] / 1e3       # kg/ha -> t/ha
 
     GAEZ_df.to_csv('data/results/step_3_GAEZ_AY_GYGA_forcing.csv', index=False)   
 
@@ -87,7 +129,7 @@ if __name__ == '__main__':
             plotnine.aes(
                 x='year', 
                 y='Value_mean', 
-                color='water_supply', 
+                color='water_supply',
             )
         ) +
         plotnine.geom_ribbon(
@@ -96,7 +138,7 @@ if __name__ == '__main__':
                 x='year', 
                 ymin='obs_ci_lower', 
                 ymax='obs_ci_upper', 
-                fill='water_supply'
+                fill='water_supply',
             ), 
             alpha=0.5
         ) +
