@@ -1,18 +1,25 @@
-import numpy as np
 import pandas as pd
+import plotnine
 import rioxarray as rxr
 import xarray as xr
 
-from helper_func.calculate_GAEZ_stats import get_GAEZ_df, get_GAEZ_stats
+from helper_func.calculate_GAEZ_stats import bincount_with_mask, get_GAEZ_df, get_GAEZ_stats
 from helper_func.get_yearbook_records import get_yearbook_yield
+from helper_func.parameters import UNIQUE_VALUES
 
 
 # Get data
 yearbook_yield = get_yearbook_yield().query('year == 2020').reset_index(drop=True)
+GAEZ_area_stats = get_GAEZ_stats('Harvested area').sort_values(['Province', 'crop', 'water_supply' ]).reset_index(drop=True)
+GAEZ_area_stats['area_ratio'] = GAEZ_area_stats.groupby(['Province', 'crop'])[['Harvested area']].transform(lambda x: x / x.sum())
+
+# Get the GAEZ_yield stats
+mask = rxr.open_rasterio('data/GAEZ_v4/GAEZ_mask.tif') 
+mask_mean = rxr.open_rasterio('data/GAEZ_v4/province_mask_mean.tif')
+mask_sum = rxr.open_rasterio('data/GAEZ_v4/province_mask.tif')
+
+# Compute the GAEZ_yield stats
 GAEZ_yield_df = get_GAEZ_df(var_type = 'Yield')
-
-GAEZ_area_stats = get_GAEZ_stats('Harvested area')
-
 
 xr_arrs = []
 for _, row in GAEZ_yield_df.iterrows():
@@ -26,76 +33,59 @@ for _, row in GAEZ_yield_df.iterrows():
 
 GAEZ_yield_xr = xr.combine_by_coords(xr_arrs)
 
-# Get the GAEZ_yield stats
-mask_mean = rxr.open_rasterio('data/GAEZ_v4/province_mask_mean.tif').squeeze('band')
-mask_sum = rxr.open_rasterio('data/GAEZ_v4/province_mask.tif').squeeze('band')
+GAEZ_yield_stats = bincount_with_mask(mask_sum, GAEZ_yield_xr * mask_mean)
+GAEZ_yield_stats = GAEZ_yield_stats.rename(columns = {'bin': 'Province', 'Value': 'Yield (t/ha)'})
+GAEZ_yield_stats['Province'] = GAEZ_yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 
 
-
-GAEZ_yield_stats.name = 'Yield'
-GAEZ_yield_stats = GAEZ_yield_stats.to_dataframe().reset_index()
-
-
-
+# Merge the GAEZ_yield_stats with the GAEZ_area_stats
+GAEZ_stats = pd.merge(GAEZ_yield_stats, GAEZ_area_stats, on = ['Province', 'crop', 'water_supply'])
+GAEZ_stats['Yield_weighted'] = GAEZ_stats['Yield (t/ha)'] * GAEZ_stats['area_ratio']
+GAEZ_stats = GAEZ_stats.groupby(['crop','Province'])[['Yield_weighted']].sum().reset_index()
 
 
+# Compute the ratio of GAEZ to yearbook
+GAEZ_yb = pd.merge(GAEZ_stats, yearbook_yield, on = ['crop', 'Province'], suffixes = ('_GAEZ', '_yearbook'))
+GAEZ_yb['GAEZ_to_yb_multiplier'] = GAEZ_yb['Yield (tonnes)'] / GAEZ_yb['Yield_weighted']
+GAEZ_yb = GAEZ_yb.set_index(['crop', 'Province'])[['GAEZ_to_yb_multiplier']]
+GAEZ_yb_xr = xr.Dataset.from_dataframe(GAEZ_yb)['GAEZ_to_yb_multiplier']
+
+# Distribute the multiplier to each province
+mask_province = [(mask_sum == idx).expand_dims({'Province': [p]}) 
+                 for idx,p in enumerate(UNIQUE_VALUES['Province'])]
+mask_province = xr.combine_by_coords(mask_province)
+mask_province = mask_province * GAEZ_yb_xr            # ratio/pixel
 
 
-
-
-
-
-def GAEZ_to_yearbook(variable:str):
-    
-    # Read the yearbook data
-    yearbook_base = 'yearbook_yield_targ_pc' if variable == 'Yield' else 'yearbook_area_targ_pc'
-    out_name = 'yield' if variable == 'Yield' else 'area'
-
-
-    # Get yearbook records
-    yearbook_records_pc = np.load(f'data/results/{yearbook_base}.npy')
-    yearbook_records_df = ndarray_to_df(yearbook_records_pc, 'pc')
-
-
-    # Get GAEZ_df recording the tif_paths, and the mask corespoding the the calculation for the variable
-    GAEZ_df, mask = get_GAEZ_df(var_type = variable)   
-    # Get the data for each  and  total value of the variable based on water_supply
-    GAEZ_arr_individual_cshw, GAEZ_arr_total_pc = get_each_and_total_value(GAEZ_df, variable, mask)
-    # Get the GAEZ_arr that has been forced to agree with the yearbook data
-    diff_pc, GAEZ_base_yr_pcshw = force_GAEZ_with_yearbook(GAEZ_arr_individual_cshw, GAEZ_arr_total_pc, yearbook_records_pc, mask)
-
-
-    # Save to disk
-    np.save(f'data/results/GAEZ_base_yr_{out_name}_pcshw.npy', GAEZ_base_yr_pcshw.astype(np.float16))
-    
-    
-    # Save the GAEZ_base_yr_pcshw to a DataFrame
-    GAEZ_base_yr_pcs = np.einsum('pcshw, phw->pcs', GAEZ_base_yr_pcshw, mask)              # (p, c, s)
-    GAEZ_base_yr_pcs_df = ndarray_to_df(GAEZ_base_yr_pcs, 'pcs')
-    
-    # Merge the GAEZ_base_yr_pcs_df with the GAEZ_df
-    GAEZ_yearbook_df = pd.merge(GAEZ_base_yr_pcs_df, 
-                                yearbook_records_df,
-                                on = ['crop', 'Province'], 
-                                how = 'left',
-                                suffixes = ('_GAEZ', '_yearbook'))
-
-
-    return GAEZ_yearbook_df
-
-
-
+# Multiply the GAEZ_yield_xr by the multiplier
+GAEZ_yield_xr_adj = GAEZ_yield_xr * mask_province
+GAEZ_yield_xr_adj = GAEZ_yield_xr_adj.sum(dim=['Province'])
 
 
 
 # Sanity check
 if __name__ == '__main__':
 
-    results = {variable: GAEZ_to_yearbook(variable) for variable in ['Yield', 'Harvested area']}
-        
+    # Get the stats
+    GAEZ_yield_adj_stats = bincount_with_mask(mask_sum, GAEZ_yield_xr_adj * mask_mean)           
+    GAEZ_yield_adj_stats = GAEZ_yield_adj_stats.rename(columns = {'bin': 'Province', 'Value': 'Yield (t/ha)'})
+    GAEZ_yield_adj_stats['Province'] = GAEZ_yield_adj_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 
+    # Merge the GAEZ_yield_adj_stats with the GAEZ_area_stats
+    GAEZ_adj_stats = pd.merge(GAEZ_yield_adj_stats, GAEZ_area_stats)
+    GAEZ_adj_stats['Yield_weighted'] = GAEZ_adj_stats['Yield (t/ha)'] * GAEZ_adj_stats['area_ratio']
+    GAEZ_adj_stats = GAEZ_adj_stats.groupby(['crop','Province'])[['Yield_weighted']].sum().reset_index()
+    
+    GAEZ_adj_yb_stats = pd.merge(GAEZ_adj_stats, yearbook_yield, on = ['crop', 'Province'], suffixes = ('_GAEZ', '_yearbook'))
 
-
+    plotnine.options.figure_size = (16, 6)
+    plotnine.options.dpi = 100
+    g = (plotnine.ggplot(GAEZ_adj_yb_stats) +
+            plotnine.geom_point(plotnine.aes(x = 'Yield (tonnes)', y = 'Yield_weighted', color = 'crop')) +
+            plotnine.geom_abline(intercept = 0, slope = 1, linetype='dashed', size=0.2) +
+            plotnine.facet_wrap('~Province') +
+            plotnine.theme_bw()
+            )
 
 
 
