@@ -1,10 +1,17 @@
-import itertools
 import numpy as np
 import pandas as pd
 import rioxarray
 import xarray as xr
 
 from helper_func.parameters import UNIQUE_VALUES, GAEZ_variables, GAEZ_water_supply
+
+# Get the GAEZ masks
+mask_mean = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+mask_sum = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+mask_sum = mask_sum.where(mask_sum>0, 0)  # Negative values are not allowed for bincount
+
+def weighted_bincount(mask, weights, minlength=None):
+    return np.bincount(mask.ravel(), weights=weights.ravel(), minlength=minlength)
 
 
 def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harvested area'):
@@ -18,41 +25,74 @@ def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harves
         
 
 
-def get_GEAZ_layers(GAEZ_df:pd.DataFrame):
-    
-    GAEZ_xr = [rioxarray.open_rasterio(fpath) for fpath in GAEZ_df['fpath']]
-    
-    GAEZ_meta = GAEZ_xr[0]
-    GAEZ_arr = np.array([i.values for i in GAEZ_xr])
-    GAEZ_arr = GAEZ_arr.reshape(
-        GAEZ_df['crop'].nunique(),
-        GAEZ_df['water_supply'].nunique(), 
-        GAEZ_meta.shape[-2],
-        GAEZ_meta.shape[-1]) 
+def get_GEAZ_layers(GAEZ_df: pd.DataFrame):
+    """
+    Combines multiple GeoTIFF layers into a single xarray dataset.
 
-    return xr.DataArray(
-        GAEZ_arr, 
-        coords={
-            'crop': GAEZ_df['crop'].unique(),
-            'water_supply': GAEZ_df['water_supply'].unique(),
-            'y': GAEZ_meta.y.values,
-            'x': GAEZ_meta.x.values
-        })
+    Args:
+        GAEZ_df (pd.DataFrame): A DataFrame containing information about the GeoTIFF layers.
+            It should have the following columns: 'fpath', 'crop', 'water_supply'.
+
+    Returns:
+        xr.Dataset: A combined xarray dataset containing all the GeoTIFF layers.
+
+    """
+    xr_arrs = []
+    for _, row in GAEZ_df.iterrows():
+        path = row['fpath']
+        crop = row['crop']
+        water_supply = row['water_supply']
+
+        xr_arr = rioxarray.open_rasterio(path).squeeze()
+        xr_arr = xr_arr.expand_dims({'crop': [crop], 'water_supply': [water_supply]})
+        xr_arrs.append(xr_arr)
+        
+    return xr.combine_by_coords(xr_arrs)
+
+
+
+def bincount_with_mask(mask, xr_arr):
+    """
+    Calculate statistics using weighted bincount with a mask.
+
+    Parameters:
+    - mask (xarray.DataArray): The mask array.
+    - xr_arr (xarray.DataArray): The input array.
+
+    Returns:
+    - stats (pandas.DataFrame): The calculated statistics.
+
+    """
+    stats = xr.apply_ufunc(
+        weighted_bincount,
+        mask,
+        xr_arr,
+        input_core_dims=[['y', 'x'], ['y', 'x']],
+        output_core_dims=[['bin']],
+        vectorize=True,
+        dask='parallelized',
+        kwargs={'minlength': int(mask_sum.max().values) + 1},
+        output_dtypes=[float]
+    )
+    
+    stats.name = 'Value'
+    stats = stats.to_dataframe().reset_index()
+    return stats
 
 
 
 def get_GAEZ_stats(var_type:str):
     """
-    Calculate statistics for a given variable type (either 'Harvested area' or 'Yield') based on GAEZ data.
+    Calculate statistics for a given variable type (either "Harvested area" or "Yield") using GAEZ data.
 
     Parameters:
-    var_type (str): The type of variable to calculate statistics for. Must be one of ['Harvested area', 'Yield'].
+    var_type (str): The type of variable to calculate statistics for. Must be either "Harvested area" or "Yield".
 
     Returns:
     pandas.DataFrame: A DataFrame containing the calculated statistics for each province.
 
     Raises:
-    ValueError: If var_type is not one of ['Harvested area', 'Yield'].
+    ValueError: If the var_type is not "Harvested area" or "Yield".
     """
 
     if var_type not in ['Harvested area', 'Yield']:
@@ -60,29 +100,11 @@ def get_GAEZ_stats(var_type:str):
 
     GAEZ_df = get_GAEZ_df(var_type = var_type)
     GAEZ_xr = get_GEAZ_layers(GAEZ_df)
-
-    mask_mean = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
-    mask_sum = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask.tif')
-    mask_sum = mask_sum.where(mask_sum>0, 0)  # Negative values are not allowed for bincount
-
-    # Yield needs to be weighted by 1/total_pixels, so to get the mean value
     GAEZ_xr = GAEZ_xr * mask_mean if var_type == 'Yield' else GAEZ_xr
 
-    # Loop through each dimension besides x and y
-    dims = [i for i in GAEZ_xr.dims if i not in ['x', 'y']]
-    dim_val = list(itertools.product(*[GAEZ_xr[i].values for i in dims]))
-
-    stats_dfs = []
-    for coord in dim_val:
-        sel_dict = dict(zip(dims, coord))
-        stats = np.bincount(mask_sum.values.flatten(), weights=GAEZ_xr.sel(**sel_dict).values.flatten())
-        stats = dict(zip(UNIQUE_VALUES['Province'], stats))
-        sel_dict.update(**stats)
-        stats_dfs.append(sel_dict)
+    GAEZ_stats = bincount_with_mask(mask_sum, GAEZ_xr)
+    GAEZ_stats.rename(columns={'Value': var_type, 'bin':'Province'}, inplace=True)
+    GAEZ_stats['Province'] = GAEZ_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    
         
-    # Convert to DataFrame
-    stats_df = pd.DataFrame(stats_dfs)
-    stats_df = stats_df.set_index(dims).stack().reset_index()
-    stats_df.columns = dims + ['Province', var_type]
-
-    return stats_df
+    return GAEZ_stats[['Province', 'crop', 'water_supply', var_type]]

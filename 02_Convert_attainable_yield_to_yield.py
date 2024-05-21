@@ -4,6 +4,7 @@ import rioxarray as rxr
 import xarray as xr
 import plotnine
 
+from helper_func.calculate_GAEZ_stats import bincount_with_mask
 from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES, Attainable_conversion
                                     
@@ -44,67 +45,34 @@ if __name__ == '__main__':
     mean_yield = GAEZ_attain_mean * mask_mean
     std_yield = GAEZ_attain_std * mask_mean
 
-
-    # Define a function to perform bincount with weights
-    def weighted_bincount(mask, weights, minlength=None):
-        return np.bincount(mask.ravel(), weights=weights.ravel(), minlength=minlength)
-
-    # Apply the function using xr.apply_ufunc
-    mean_yield = xr.apply_ufunc(
-        weighted_bincount,
-        mask_sum,
-        mean_yield,
-        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
-        output_core_dims=[['bin']],
-        vectorize=True,
-        dask='allowed',
-        output_dtypes=[float],
-        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
-    )
-
-    std_yield = xr.apply_ufunc(
-        weighted_bincount,
-        mask_sum,
-        std_yield,
-        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
-        output_core_dims=[['bin']],
-        vectorize=True,
-        dask='allowed',
-        output_dtypes=[float],
-        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
-    )
-
-
-    # Assign a name to the DataArray
-    mean_yield.name = 'bincount'
-    std_yield.name = 'bincount'
+    # Get stats
+    mean_yield_stats = bincount_with_mask(mask_sum, mean_yield)
+    std_yield_stats = bincount_with_mask(mask_sum, std_yield)
 
     # Convert to DataFrame
-    mean_df = mean_yield.to_dataframe().reset_index()
-    mean_df['bin'] = mean_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
-    mean_df['bincount_t/ha'] = mean_df['bincount'] / 1e3             # kg/ha -> t/ha
-
-    std_df = std_yield.to_dataframe().reset_index()
-    std_df['bin'] = std_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
-    std_df['bincount_t/ha'] = std_df['bincount'] / 1e3               # kg/ha -> t/ha
+    mean_yield_stats['bin'] = mean_yield_stats['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
+    std_yield_stats['bin'] = std_yield_stats['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
+    
+    mean_yield_stats['Yield t/ha'] = mean_yield_stats['Value'] / 1e3             # kg/ha -> t/ha
+    std_yield_stats['Yield t/ha'] = std_yield_stats['Value'] / 1e3               # kg/ha -> t/ha
 
     # Merge the mean and std DataFrames
     GAEZ_yield_df = pd.merge(
-        mean_df, 
-        std_df, 
+        mean_yield_stats, 
+        std_yield_stats, 
         on=['rcp', 'crop', 'year', 'water_supply', 'c02_fertilization', 'bin'], 
         suffixes=('_mean', '_std'))
     
     # Save to disk
-    save_cols = ['year', 'rcp', 'crop', 'water_supply', 'c02_fertilization', 'bin', 'bincount_t/ha_mean', 'bincount_t/ha_std']
+    save_cols = ['year', 'rcp', 'crop', 'water_supply', 'c02_fertilization', 'bin', 'Yield t/ha_mean', 'Yield t/ha_std']
     GAEZ_yield_df[save_cols].to_csv('data/results/step_2_GAEZ_attainable.csv', index=False)
     
     # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
     rcp = "RCP4.5" 
     c02_fertilization = 'With CO2 Fertilization'
     GAEZ_yield_df = GAEZ_yield_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
-    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['bincount_t/ha_mean'] - (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)
-    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['bincount_t/ha_mean'] + (GAEZ_yield_df['bincount_t/ha_std'] * 1.96)
+    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['Yield t/ha_mean'] - (GAEZ_yield_df['Yield t/ha_std'] * 1.96)
+    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['Yield t/ha_mean'] + (GAEZ_yield_df['Yield t/ha_std'] * 1.96)
 
 
     # Plot the yield for each province of both yearbook and GAEZ
@@ -113,7 +81,7 @@ if __name__ == '__main__':
     g = (
         plotnine.ggplot() +
         plotnine.geom_line(GAEZ_yield_df,
-                        plotnine.aes(x='year', y='bincount_t/ha_mean', color='water_supply')
+                        plotnine.aes(x='year', y='Yield t/ha_mean', color='water_supply')
                         ) +
         plotnine.geom_ribbon(GAEZ_yield_df,
                             plotnine.aes(x='year', ymin='obs_ci_lower', ymax='obs_ci_upper', fill='water_supply'), alpha=0.5

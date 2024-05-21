@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import rioxarray
 import xarray as xr
+import plotnine
 
 from helper_func import compute_mean_std
+from helper_func.calculate_GAEZ_stats import bincount_with_mask
 from helper_func.parameters import GAEZ_variables, GAEZ_year_mid, UNIQUE_VALUES
 
 # Compute the mean and std of attainable yield according to different climate models
@@ -57,34 +59,14 @@ if __name__ == '__main__':
 
     # bincount the mask to get the sum for each province
     mean_xr_t = mean_xr * GAEZ_area / 10                # (kg/ha) * km2 / 10 = t
-    
-    # Define a function to perform bincount with weights
-    def weighted_bincount(data, weights, minlength=None):
-        return np.bincount(data.ravel(), weights=weights.ravel(), minlength=minlength)
-
-    # Apply the function using xr.apply_ufunc
-    bincount_result = xr.apply_ufunc(
-        weighted_bincount,
-        mask_province,
-        mean_xr_t,
-        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
-        output_core_dims=[['bin']],
-        vectorize=True,
-        dask='allowed',
-        output_dtypes=[float],
-        kwargs={'minlength': int(mask_province.max().values) + 1}  # Ensure bins for all unique mask values
-    )
-
-    # Assign a name to the DataArray
-    bincount_result.name = 'bincount'
 
     # Convert to DataFrame
-    bincount_df = bincount_result.to_dataframe().reset_index()
+    bincount_df = bincount_with_mask(mask_province, mean_xr_t)
     bincount_df['bin'] = bincount_df['bin'].map(lambda x:UNIQUE_VALUES['Province'][int(x)])
 
-    import plotnine
+    
     g = (plotnine.ggplot(bincount_df.query('rcp == "RCP2.6"')) +
-         plotnine.geom_line(plotnine.aes(x='year', y='bincount',color='bin',linetype='water_supply')) +
+         plotnine.geom_line(plotnine.aes(x='year', y='Value',color='bin',linetype='water_supply')) +
          plotnine.facet_grid('crop~c02_fertilization') +
          plotnine.theme_bw()
         )

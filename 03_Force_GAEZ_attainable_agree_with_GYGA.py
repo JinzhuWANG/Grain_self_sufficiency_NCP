@@ -4,6 +4,7 @@ import plotnine
 import rioxarray as rxr
 import xarray as xr
 
+from helper_func.calculate_GAEZ_stats import bincount_with_mask
 from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES
 
@@ -17,7 +18,7 @@ GAEZ_attain = pd.read_csv('data/results/step_2_GAEZ_attainable.csv')    # t/ha
 GAEZ_attain = GAEZ_attain.rename(columns={'bin' : 'Province'})
 
 GYGA_GAEZ_2010 = GYGA_PY_2010.merge(GAEZ_attain, on=['Province', 'crop', 'water_supply','year'], how='left')
-GYGA_GAEZ_2010['GAEZ2GYGA_mul'] = GYGA_GAEZ_2010['yield_potential_adj'] / GYGA_GAEZ_2010['bincount_t/ha_mean']
+GYGA_GAEZ_2010['GAEZ2GYGA_mul'] = GYGA_GAEZ_2010['yield_potential_adj'] / GYGA_GAEZ_2010['Yield t/ha_mean']
 GYGA_GAEZ_2010 = GYGA_GAEZ_2010.set_index(['Province', 'crop', 'water_supply', 'rcp', 'c02_fertilization', ])[['GAEZ2GYGA_mul']]
 
 GAEZ_mul = xr.Dataset.from_dataframe(GYGA_GAEZ_2010)
@@ -61,42 +62,10 @@ if __name__ == '__main__':
     # Yield need to multiply with the mask_mean frist
     GAEZ_mean = GAEZ_mean * mask_mean
     GAEZ_std = GAEZ_std * mask_mean  
-    
-
-    def weighted_bincount(mask, weights, minlength=None):
-        return np.bincount(mask.ravel(), weights=weights.ravel(), minlength=minlength)
 
     # Apply the function using xr.apply_ufunc
-    GAEZ_mean_df = xr.apply_ufunc(
-        weighted_bincount,
-        mask_sum,
-        GAEZ_mean,
-        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
-        output_core_dims=[['bin']],
-        vectorize=True,
-        dask='allowed',
-        output_dtypes=[float],
-        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
-    )
-
-    GAEZ_std_df = xr.apply_ufunc(
-        weighted_bincount,
-        mask_sum,
-        GAEZ_std,
-        input_core_dims=[['band', 'y', 'x'], ['band', 'y', 'x']],
-        output_core_dims=[['bin']],
-        vectorize=True,
-        dask='allowed',
-        output_dtypes=[float],
-        kwargs={'minlength': int(mask_sum.max().values) + 1}  # Ensure bins for all unique mask values
-    )
-
-
-    # Merge the data
-    GAEZ_mean_df.name = 'mean'
-    GAEZ_std_df.name = 'std'
-    GAEZ_mean_df = GAEZ_mean_df.to_dataframe().reset_index()
-    GAEZ_std_df = GAEZ_std_df.to_dataframe().reset_index()
+    GAEZ_mean_df = bincount_with_mask(mask_sum, GAEZ_mean)
+    GAEZ_std_df = bincount_with_mask(mask_sum, GAEZ_std)
 
     GAEZ_df = GAEZ_mean_df.merge(
         GAEZ_std_df, 
@@ -105,9 +74,8 @@ if __name__ == '__main__':
         )
     
     GAEZ_df['Province'] = GAEZ_df['bin'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
-
-    GAEZ_df['Value_mean'] = GAEZ_df['mean'] / 1e3     # kg/ha -> t/ha
-    GAEZ_df['Value_std'] = GAEZ_df['std'] / 1e3       # kg/ha -> t/ha
+    GAEZ_df['Value_mean'] = GAEZ_df['Value_mean'] / 1e3     # kg/ha -> t/ha
+    GAEZ_df['Value_std'] = GAEZ_df['Value_std'] / 1e3       # kg/ha -> t/ha
 
     GAEZ_df.to_csv('data/results/step_3_GAEZ_AY_GYGA_forcing.csv', index=False)   
 

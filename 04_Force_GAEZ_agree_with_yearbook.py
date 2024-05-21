@@ -1,10 +1,46 @@
 import numpy as np
 import pandas as pd
-import rasterio
+import rioxarray as rxr
+import xarray as xr
 
-from data_transform.Force_GAEZ_with_yearbook import force_GAEZ_with_yearbook, get_GAEZ_df, get_each_and_total_value
-from helper_func import ndarray_to_df
-from helper_func.parameters import UNIQUE_VALUES
+from helper_func.calculate_GAEZ_stats import get_GAEZ_df, get_GAEZ_stats
+from helper_func.get_yearbook_records import get_yearbook_yield
+
+
+# Get data
+yearbook_yield = get_yearbook_yield().query('year == 2020').reset_index(drop=True)
+GAEZ_yield_df = get_GAEZ_df(var_type = 'Yield')
+
+GAEZ_area_stats = get_GAEZ_stats('Harvested area')
+
+
+xr_arrs = []
+for _, row in GAEZ_yield_df.iterrows():
+    path = row['fpath']
+    crop = row['crop']
+    water_supply = row['water_supply']
+
+    xr_arr = rxr.open_rasterio(path).squeeze()
+    xr_arr = xr_arr.expand_dims({'crop': [crop], 'water_supply': [water_supply]})
+    xr_arrs.append(xr_arr)
+
+GAEZ_yield_xr = xr.combine_by_coords(xr_arrs)
+
+# Get the GAEZ_yield stats
+mask_mean = rxr.open_rasterio('data/GAEZ_v4/province_mask_mean.tif').squeeze('band')
+mask_sum = rxr.open_rasterio('data/GAEZ_v4/province_mask.tif').squeeze('band')
+
+
+
+GAEZ_yield_stats.name = 'Yield'
+GAEZ_yield_stats = GAEZ_yield_stats.to_dataframe().reset_index()
+
+
+
+
+
+
+
 
 
 
