@@ -61,6 +61,9 @@ mask_province = mask_province * GAEZ_yb_xr            # ratio/pixel
 GAEZ_yield_xr_adj = GAEZ_yield_xr * mask_province
 GAEZ_yield_xr_adj = GAEZ_yield_xr_adj.sum(dim=['Province'])
 
+GAEZ_yield_xr_adj.name = 'data'
+encoding = {'data': {'dtype': 'float32', 'zlib': True}}
+GAEZ_yield_xr_adj.to_netcdf('data/results/step_4_GAEZ_actual_yield_adj.nc', encoding=encoding, engine='h5netcdf')
 
 
 # Sanity check

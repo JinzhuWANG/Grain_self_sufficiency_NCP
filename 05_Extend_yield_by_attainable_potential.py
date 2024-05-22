@@ -1,101 +1,78 @@
+import rioxarray as rxr
+import xarray as xr
 import numpy as np
-import pandas as pd
 import plotnine
-import rasterio
 
-from helper_func import ndarray_to_df
-
-
-
-
-# Read the yearbook data
-yearbook_yield = pd.read_csv('data/results/yearbook_yield.csv')
+from helper_func.calculate_GAEZ_stats import bincount_with_mask
+from helper_func.get_yearbook_records import get_yearbook_yield
+from helper_func.parameters import UNIQUE_VALUES
 
 
-# Read the GAEZ actual yiled data in the base
-GAEZ_yield_pcshw = np.load('data/results/GAEZ_base_yr_yield_pcshw.npy')       # (p, c, s, h, w)
-# Read the GAEZ_attainable_potential data
-GAEZ_attain_yield_mean_all_yr_rcsoyhw = np.load('data/results/GAEZ_4_attain_extrapolated_mean_t_rcsoyhw.npy')       # (r, c, s, o, y, h, w)
-# Remove the 2010, 2015 form the attainable yield
-GAEZ_attain_yield_mean_rcsoyhw = GAEZ_attain_yield_mean_all_yr_rcsoyhw[:, :, :, :, 2:, :, :]    # (r, c, s, o, y, h, w)
+# Load the data
+GAEZ_attain_mean = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_mean.nc")['data']
+GAEZ_attain_std = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_std.nc")['data']
 
+# Divide the start year to get ratio change
+GAEZ_attain_mean_ratio = GAEZ_attain_mean / GAEZ_attain_mean.sel(year=2020)
+GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(~np.isinf(GAEZ_attain_mean_ratio), 0)
 
+# Assume the yield will not decrease
+GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(GAEZ_attain_mean_ratio > 1, 1).sel(year=slice(2020, 2101))
+GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(GAEZ_attain_mean_ratio < 3, 3)
 
+# Load the actual yield data
+GAEZ_actual_yield = xr.open_dataset("data/results/step_4_GAEZ_actual_yield_adj.nc")['data']
 
-# Read the mask of the GAEZ data
-with rasterio.open('data/GAEZ_v4/Province_mask.tif') as src:
-    mask = src.read()                                                # (p, h, w)
+# Extend the yield by multiplying the ratio
+GAEZ_actual_yield = GAEZ_actual_yield * GAEZ_attain_mean_ratio
 
-with rasterio.open('data/GAEZ_v4/Province_mask_mean.tif') as src:
-    mask_mean = src.read()                                           # (p, h, w)
-
+encoding = {'data': {'dtype': 'float32', 'zlib': True}}
+GAEZ_actual_yield.to_netcdf('data/results/step_5_GAEZ_actual_yield_extended.nc', encoding=encoding, engine='h5netcdf')
 
 
 
-# Calculate the scale change of the attainable yield between the base and the future
-GAEZ_attain_yield_mean_base_rcsohw = GAEZ_attain_yield_mean_rcsoyhw[:, :, :, :, 0, :, :]             # (r, c, s, o, h, w)
-GAEZ_attain_yield_mean_base_divider_rcsohw = 1/GAEZ_attain_yield_mean_base_rcsohw                    # (r, c, s, o, h, w)
 
-# Update the result with the mask to avoid the <division by zero>
-GAEZ_attain_yield_mean_base_divider_rcsohw = np.einsum('rcsohw, phw -> rcsohw',
-                                                       GAEZ_attain_yield_mean_base_divider_rcsohw, 
-                                                       mask)                                         # (r, c, s, o, h, w)
-
-
-# Divide the attainable yield by its base year value to get the multiplier
-GAEZ_attain_yield_mean_multiplier_rcsoyhw = np.einsum('rcsoyhw, rcsohw -> rcsoyhw', 
-                                                      GAEZ_attain_yield_mean_rcsoyhw, 
-                                                      GAEZ_attain_yield_mean_base_divider_rcsohw)    # (r, c, s, o, y, h, w)
-
-
-
-# We assume the yield will NOT decrease in the future, so we manually set all values >= 1
-GAEZ_attain_yield_mean_multiplier_rcsoyhw[GAEZ_attain_yield_mean_multiplier_rcsoyhw < 1] = 1
-
-# Replace the NaN values with 0
-GAEZ_attain_yield_mean_multiplier_rcsoyhw = np.nan_to_num(GAEZ_attain_yield_mean_multiplier_rcsoyhw)
-
-
-
-# Apply the multiplier to the GAEZ actual yield
-GAEZ_yield_base_target_prcsoyhw = np.einsum('pcshw, rcsoyhw -> prcsoyhw',
-                                            GAEZ_yield_pcshw, 
-                                            GAEZ_attain_yield_mean_multiplier_rcsoyhw)    # (p, r, c, s, o, y, h, w)
-
-
-# Save the result
-np.save('data/results/GAEZ_yield_base_target_prcsoyhw.npy', GAEZ_yield_base_target_prcsoyhw)
-
-
-# Sanity Check
 if __name__ == '__main__':
+
+    # yearbook yield
+    yearbook_yield = get_yearbook_yield().query('year >= 1990')
     
-    # Get the avg yield for each province
-    GAEZ_yield_base_target_rcsoyp = np.einsum('prcsoyhw, phw -> rcsoyp', 
-                                             GAEZ_yield_base_target_prcsoyhw, 
-                                             mask_mean)                                 # (r, c, s, o, y, p)
+    # Read masks
+    mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+    mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+
+    yield_mean_stats = bincount_with_mask(mask_sum, GAEZ_actual_yield * mask_mean)
+    yield_mean_stats = yield_mean_stats.rename(columns={'Value': 'yield', 'bin': 'Province'})
     
-    GAEZ_yield_base_target_rcsoy_df = ndarray_to_df(GAEZ_yield_base_target_rcsoyp, 'rcsoyp')
+    yield_std_stats = bincount_with_mask(mask_sum, GAEZ_attain_std * mask_mean / 1000)            # kg/ha -> t/ha
+    yield_std_stats = yield_std_stats.rename(columns={'Value': 'yield_std', 'bin': 'Province'})
+
+    yield_stats = yield_mean_stats.merge(yield_std_stats, how='left')
+    yield_stats['upper'] = yield_stats['yield'] + 1.96 * yield_stats['yield_std']
+    yield_stats['lower'] = yield_stats['yield'] - 1.96 * yield_stats['yield_std']
+    yield_stats.loc[:, 'Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     
-    # Make a plot
-    plotnine.options.figure_size = (12, 8)
+    rcp='RCP2.6'
+    c02_fert = 'With CO2 Fertilization'
+    yield_stats = yield_stats.query(f'rcp == "{rcp}" & c02_fertilization == "{c02_fert}"')
+
+    plotnine.options.figure_size = (16, 6)
     plotnine.options.dpi = 100
-    
-    rcp = 'RCP4.5'
-    GAEZ_yield_base_target_rcsoy_df_rcp45 = GAEZ_yield_base_target_rcsoy_df.query('rcp == @rcp')
-    
+
     g = (plotnine.ggplot() +
-         plotnine.geom_line(GAEZ_yield_base_target_rcsoy_df_rcp45, 
-                            plotnine.aes(x='simulation_year', 
-                                         y='Value', 
-                                         color='water_supply', 
-                                         linetype='c02_fertilization') ) + 
-         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)')) +
-         plotnine.facet_grid('crop~Province', scales='free_y') +
-        #  plotnine.theme(legend_position='none') +
-         plotnine.ggtitle('GAEZ Yield Base Target')
-         )
-    
+        plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), size=0.05, alpha=0.5) +
+        plotnine.geom_line(yield_stats, plotnine.aes(x='year', y='yield', color='water_supply')) +
+        plotnine.geom_ribbon(yield_stats, plotnine.aes(x='year', ymin='lower', ymax='upper', fill='water_supply'), alpha=0.4) +
+        plotnine.labs(x='Year', y='Yield (t/ha)') +
+        plotnine.facet_grid('crop~Province', scales='free_y') +
+        plotnine.theme_bw() 
+        )
+
+
+
+
+
+
 
 
