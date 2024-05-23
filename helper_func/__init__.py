@@ -1,7 +1,6 @@
 
 import numpy as np
 import pandas as pd
-import rasterio
 
 import rioxarray
 import statsmodels.api as sm
@@ -11,8 +10,6 @@ import xarray
 from helper_func.parameters import (BASE_YR, 
                                     TARGET_YR,
                                     PRED_STEP,
-                                    DIM_ABBRIVATION, 
-                                    UNIQUE_VALUES, 
                                     Monte_Carlo_num,
                                     Province_names_cn_en)
 
@@ -86,28 +83,6 @@ def read_ssp(data_path:str='data/SSP_China_data'):
 
 
 
-
-
-# Function to convert a numpy array to a pandas dataframe
-def ndarray_to_df(in_array:np.ndarray, in_dim:str, year_start:int=2020):
-    
-    # Check if "y" included in the in_dim
-    if 'y' in in_dim:
-        if year_start == 2010:
-            DIM_ABBRIVATION['y'] = 'attainable_year'
-        elif year_start == 2020:
-            DIM_ABBRIVATION['y'] = 'simulation_year'
-        
-    in_names = [DIM_ABBRIVATION[i] for i in in_dim]
-    
-    out_df = pd.DataFrame(in_array.flatten(), 
-                          index=pd.MultiIndex.from_product([UNIQUE_VALUES[i] for i in in_names])).reset_index()
-    
-    out_df.columns = in_names + ['Value']
-    
-    return out_df
-
-
 def fit_linear_model(df):
     
     # Fit a linear model to the data
@@ -132,27 +107,3 @@ def fit_linear_model(df):
 
 
 
-def sample_from_mean_std(mean: np.ndarray, std: np.ndarray, resfactor: int = 8, size: int = Monte_Carlo_num):
-    
-    if mean.shape != std.shape:
-        raise ValueError("The mean and std arrays must have the same shape")
-
-    # Expand the mean and std arrays with an extra dimension for the samples
-    mean = np.expand_dims(mean, 0).astype(np.float16)
-    std = np.expand_dims(std, 0).astype(np.float16)
-
-    # Get the chunk shape
-    chunk_shape = (1,) + mean.shape[1:-2] + tuple(dim//resfactor for dim in mean.shape[-2:])
-    sample_shape = (size,) + mean.shape[1:]
-
-    # Create dask arrays
-    mean_da = da.from_array(mean, chunks=chunk_shape)
-    std_da = da.from_array(std, chunks=chunk_shape)
-
-    # Generate samples
-    sample_arr = da.random.normal(mean_da, std_da, sample_shape).astype(np.float16)
-
-    # Rechunk sample_arr to have the same chunk shape as mean_da and std_da
-    sample_arr = sample_arr.rechunk(chunk_shape)
-
-    return sample_arr
