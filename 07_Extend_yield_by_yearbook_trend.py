@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 import dask.array as da
 
+from statistics import NormalDist
 from dask.diagnostics import ProgressBar as Progressbar
 
 sample_size = 100
@@ -16,13 +17,22 @@ GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extende
 GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc', chunks='auto')['data'].sel(year=slice(2020, 2101))
 
 
-GAEZ_yield_range = xr.DataArray(
-    da.random.normal(0, 1, (sample_size,) + GAEZ_yield_std.shape),
+
+
+GAEZ_MC = xr.DataArray(
+    NormalDist(mu=GAEZ_yield_mean.values, sigma=GAEZ_yield_std.values).inv_cdf(0.95),
     dims=('sample',) + GAEZ_yield_std.dims,
     coords={'sample': np.arange(sample_size), **GAEZ_yield_std.coords}
-) * GAEZ_yield_std
+) 
 
-GAEZ_MC = GAEZ_yield_mean + GAEZ_yield_range
+
+
+
+
+
+
+
+
 
 # Adjust the yield by the yearbook trend
 GAEZ_MC_adj_yb = GAEZ_MC * yearbook_trend_ratio['mean']
