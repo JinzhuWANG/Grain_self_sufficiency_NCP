@@ -49,6 +49,9 @@ with Progressbar():
     mean = GAEZ_MC_adj_yb.mean(dim='sample').compute()
     std = GAEZ_MC_adj_yb.std(dim='sample').compute()
 
+
+mean.name = 'data'
+std.name = 'data'
 encoding = {'data': {'zlib': True, 'complevel': 9, 'dtype': 'float32'}}
 mean.to_netcdf('data/results/step_7_GAEZ_MC_adj_yb_mean.nc', encoding=encoding)
 std.to_netcdf('data/results/step_7_GAEZ_MC_adj_yb_std.nc', encoding=encoding)
