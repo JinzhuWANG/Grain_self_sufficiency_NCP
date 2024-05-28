@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 import dask.array as da
 
+from joblib import Parallel, delayed
 from tqdm.auto import tqdm
 from scipy.stats import norm, truncnorm
 from dask.diagnostics import ProgressBar as Progressbar
@@ -13,11 +14,12 @@ yearbook_trend_ratio = yearbook_trend['mean'] / yearbook_trend.sel(year=2020)['m
 yearbook_trend_ratio = yearbook_trend_ratio
 
 # Read the GAEZ data
+chunk_size = {'rcp':-1,'year': 1, 'y': -1, 'x': -1}
 GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')['data'].sel(year=slice(2020, 2101))
 GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc')['data'].sel(year=slice(2020, 2101))
 
-GAEZ_yield_mean = GAEZ_yield_mean.chunk({'rcp':1,'year': 1, 'y': -1, 'x': -1})
-GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).chunk({'year': 1, 'y': -1, 'x': -1})
+GAEZ_yield_mean = GAEZ_yield_mean.chunk(chunk_size)
+GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).chunk(chunk_size)
 GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3)
 
 
@@ -28,26 +30,62 @@ loc, scale = 0.5, 0.1
 a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
 samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
 
-# Create a Dask array for the samples and reshape to match the dimensions
-samples_da = da.from_array(samples, chunks=(n_samples,))
-samples_da = samples_da[:, None, None, None, None, None, None, None, None]  # Adjust dimensions to match GAEZ_yield_std
 
 # Define a function to compute the ppf
-def compute_ppf(ppf, mean, std):
-    return norm.ppf(ppf, loc=mean, scale=std)
+def compute_ppf(ppfs, mean, std):
+    return da.from_array([norm.ppf(p, loc=mean, scale=std) for p in ppfs], chunks=(n_samples,))
 
-# Apply the function to each block of the Dask arrays using map_blocks
+
 ppf_da = da.map_blocks(
-    compute_ppf, 
-    samples_da, 
-    GAEZ_yield_mean.data[None, ...], 
-    GAEZ_yield_std.data[None, ...], 
-    dtype=GAEZ_yield_mean.dtype,
-    chunks=(n_samples,) + GAEZ_yield_mean.data.chunks
-)
+        compute_ppf, 
+        samples, 
+        GAEZ_yield_mean, 
+        GAEZ_yield_std, 
+        dtype=GAEZ_yield_mean.dtype,
+        chunks=(n_samples,) + GAEZ_yield_mean.data.chunks
+    )
 
 with Progressbar():
     ppf_mean = ppf_da.mean(axis=0).compute()
+
+
+
+
+# Function to sample percentiles from the mean and std arrays
+def sample_from_arr(n, idx=0):
+    ppf_da = da.map_blocks(
+        compute_ppf, 
+        n, 
+        GAEZ_yield_mean, 
+        GAEZ_yield_std, 
+        dtype=GAEZ_yield_mean.dtype,
+        chunks=GAEZ_yield_mean.data.chunks
+    )[None, ...]
+    
+    ppf_da = xr.DataArray(
+        ppf_da, 
+        dims=('sample',) + GAEZ_yield_mean.dims, 
+        coords={'sample':[idx], **GAEZ_yield_mean.coords},
+        name=None)
+    
+    ppf_da.name = None 
+    
+    return ppf_da
+
+
+task = [delayed(sample_from_arr)(n, idx) for idx, n in enumerate(samples)]
+para_obj = Parallel(n_jobs=-1, prefer='threads', return_as='generator')
+
+ppf_xr = []
+for res in tqdm(para_obj(task), total=n_samples):
+    ppf_xr.append(res)
+
+ppf_xr = xr.combine_by_coords(ppf_xr).chunk({'sample': -1})
+
+
+
+with Progressbar():
+    ppf_mean = ppf_xr.mean(dim='sample').compute()
 
 
 
