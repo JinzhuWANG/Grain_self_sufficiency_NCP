@@ -95,7 +95,6 @@ pred_Gao_diff.to_csv('data/results/Urban_SSP_pred_Gao_diff.csv', index=False)
 pred_Li_ratio = pd.read_csv('data/results/Urban_SSP_pred_Li_ratio.csv')
 pred_Gao_diff = pd.read_csv('data/results/Urban_SSP_pred_Gao_diff.csv')
 
-
 if __name__ == "__main__":
     
     g = (plotnine.ggplot() +

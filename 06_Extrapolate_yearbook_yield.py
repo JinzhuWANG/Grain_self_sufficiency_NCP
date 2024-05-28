@@ -3,7 +3,7 @@ import plotnine
 
 
 # from helper_func import fit_linear_model
-from helper_func import fit_linear_model, ndarray_to_df
+from helper_func import fit_linear_model
 from helper_func.get_yearbook_records import get_yearbook_yield
 from helper_func.parameters import UNIQUE_VALUES
 
@@ -32,7 +32,7 @@ for province in UNIQUE_VALUES['Province']:
         
         pred_df = yearbook_yield_fitted.query('Province == @province and crop == @crop')
         pred_mean = pred_df['mean'].mean()
-        yearbook_base = yearbook_yield.query('Province == @province and crop == @crop and year == @BASE_YR')['Yield (tonnes)'].values[0]
+        yearbook_base = yearbook_yield.query(f'Province == @province and crop == @crop and year == @BASE_YR')['Yield (tonnes)'].values[0]
         
         if pred_mean < yearbook_base:
             yearbook_yield_fitted.loc[(yearbook_yield_fitted['Province'] == province) & (yearbook_yield_fitted['crop'] == crop), 'mean'] = yearbook_base

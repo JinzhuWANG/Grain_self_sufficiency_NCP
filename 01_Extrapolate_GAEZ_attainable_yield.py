@@ -39,7 +39,7 @@ std_xr = xr.combine_by_coords(stds) * mask_GAEZ
 # Interpolate the mean and std to 5 year interval
 mean_xr = mean_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
 std_xr = std_xr.interp(year=range(2010,2101,5), method='linear', kwargs={"fill_value": "extrapolate"})
-
+std_xr = std_xr.where(std_xr > 0, 0)  # Set the negative std to 0
 
 # Save with compression
 mean_xr.name = 'data'

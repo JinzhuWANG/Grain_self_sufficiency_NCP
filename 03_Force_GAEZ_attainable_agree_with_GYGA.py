@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import plotnine
 import rioxarray as rxr
@@ -29,7 +28,7 @@ mask_province = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 mask_province = [(mask_province == idx).expand_dims({'Province': [p]}) 
                  for idx,p in enumerate(UNIQUE_VALUES['Province'])]
 mask_province = xr.combine_by_coords(mask_province)
-mask_province = mask_province * GAEZ_mul            # ratio/pixel
+mask_province = mask_province * GAEZ_mul                                    # ratio/pixel
 
 # Multiply the GAEZ_mean with the GAEZ2GYGA_mul
 GAEZ_mean = xr.open_dataarray('data/results/step_2_GAEZ_4_attain_mean.nc')  # kg/ha
