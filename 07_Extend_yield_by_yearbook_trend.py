@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 import dask.array as da
 
+from tqdm.auto import tqdm
 from scipy.stats import norm, truncnorm
 from dask.diagnostics import ProgressBar as Progressbar
 
@@ -12,22 +13,42 @@ yearbook_trend_ratio = yearbook_trend['mean'] / yearbook_trend.sel(year=2020)['m
 yearbook_trend_ratio = yearbook_trend_ratio
 
 # Read the GAEZ data
-GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc', chunks='auto')['data']
-GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc', chunks='auto')['data'].sel(year=slice(2020, 2101))
-GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims)
+GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')['data'].sel(year=slice(2020, 2101))
+GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc')['data'].sel(year=slice(2020, 2101))
 
+GAEZ_yield_mean = GAEZ_yield_mean.chunk({'rcp':1,'year': 1, 'y': -1, 'x': -1})
+GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).chunk({'year': 1, 'y': -1, 'x': -1})
+GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3)
 
-chunk_size = {i:1 for i in GAEZ_yield_std.dims}
-
-
-
-n_sample = 100
-samples = np.random.normal(0, 1, n_sample)
-min_sample, max_sample = np.min(samples) + 1e-5, np.max(samples) + 1e-5
 
 # Normalize the samples to the range [0, 1]
-normalized_samples = (samples - min_sample) / (max_sample - np.min(samples))
-normalized_samples = da.from_array(normalized_samples, chunks='auto')
+n_samples = 100
+a,b = 0.025, 0.975
+loc, scale = 0.5, 0.1
+a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
+samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
+
+# Create a Dask array for the samples and reshape to match the dimensions
+samples_da = da.from_array(samples, chunks=(n_samples,))
+samples_da = samples_da[:, None, None, None, None, None, None, None, None]  # Adjust dimensions to match GAEZ_yield_std
+
+# Define a function to compute the ppf
+def compute_ppf(ppf, mean, std):
+    return norm.ppf(ppf, loc=mean, scale=std)
+
+# Apply the function to each block of the Dask arrays using map_blocks
+ppf_da = da.map_blocks(
+    compute_ppf, 
+    samples_da, 
+    GAEZ_yield_mean.data[None, ...], 
+    GAEZ_yield_std.data[None, ...], 
+    dtype=GAEZ_yield_mean.dtype,
+    chunks=(n_samples,) + GAEZ_yield_mean.data.chunks
+)
+
+with Progressbar():
+    ppf_mean = ppf_da.mean(axis=0).compute()
+
 
 
 # Define a function to compute the ppf
@@ -35,10 +56,18 @@ def compute_ppf(ppf, mean, std):
     return norm.ppf(ppf, loc=mean, scale=std)
 
 # Use map_blocks to apply the function to each block of the dask arrays
-ppf_da = da.map_blocks(compute_ppf, 
-                       normalized_samples.reshape([-1] + [1]*(GAEZ_yield_mean.ndim)), 
-                       GAEZ_yield_mean, 
-                       GAEZ_yield_std)
+ppfs = []
+for n in tqdm(samples, total=n_samples):
+    ppf_da = da.map_blocks(
+        compute_ppf, 
+        n, 
+        GAEZ_yield_mean, 
+        GAEZ_yield_std,
+        chunks=GAEZ_yield_mean.chunks
+    )
+    ppfs.append(ppf_da)
+
+ppfs_da = da.stack(ppfs, axis=0)
 
 
 
