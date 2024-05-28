@@ -14,13 +14,23 @@ yearbook_trend_ratio = yearbook_trend['mean'] / yearbook_trend.sel(year=2020)['m
 yearbook_trend_ratio = yearbook_trend_ratio
 
 # Read the GAEZ data
-chunk_size = {'rcp':-1,'year': 1, 'y': -1, 'x': -1}
-GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')['data'].sel(year=slice(2020, 2101))
-GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc')['data'].sel(year=slice(2020, 2101))
+chunk_size = {
+    'crop': 1,
+    'water_supply': 2,
+    'y': 160,
+    'x': 149,
+    'band': 1,
+    'year': 2,
+    'rcp': 2,
+    'c02_fertilization': 2
+}
 
-GAEZ_yield_mean = GAEZ_yield_mean.chunk(chunk_size)
-GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).chunk(chunk_size)
-GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3)
+GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')
+GAEZ_yield_mean = GAEZ_yield_mean['data'].sel(year=slice(2020, 2101)).astype('float32').chunk(chunk_size)
+
+GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc')['data'].sel(year=slice(2020, 2101))
+GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).astype('float32')
+GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3).chunk(chunk_size)
 
 
 # Normalize the samples to the range [0, 1]
@@ -31,24 +41,8 @@ a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
 samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
 
 
-# Define a function to compute the ppf
-def compute_ppf(ppfs, mean, std):
-    return da.from_array([norm.ppf(p, loc=mean, scale=std) for p in ppfs], chunks=(n_samples,))
-
-
-ppf_da = da.map_blocks(
-        compute_ppf, 
-        samples, 
-        GAEZ_yield_mean, 
-        GAEZ_yield_std, 
-        dtype=GAEZ_yield_mean.dtype,
-        chunks=(n_samples,) + GAEZ_yield_mean.data.chunks
-    )
-
-with Progressbar():
-    ppf_mean = ppf_da.mean(axis=0).compute()
-
-
+def compute_ppf(p, mean, std):
+    return norm.ppf(p, loc=mean, scale=std) 
 
 
 # Function to sample percentiles from the mean and std arrays
@@ -86,65 +80,5 @@ ppf_xr = xr.combine_by_coords(ppf_xr).chunk({'sample': -1})
 
 with Progressbar():
     ppf_mean = ppf_xr.mean(dim='sample').compute()
-
-
-
-# Define a function to compute the ppf
-def compute_ppf(ppf, mean, std):
-    return norm.ppf(ppf, loc=mean, scale=std)
-
-# Use map_blocks to apply the function to each block of the dask arrays
-ppfs = []
-for n in tqdm(samples, total=n_samples):
-    ppf_da = da.map_blocks(
-        compute_ppf, 
-        n, 
-        GAEZ_yield_mean, 
-        GAEZ_yield_std,
-        chunks=GAEZ_yield_mean.chunks
-    )
-    ppfs.append(ppf_da)
-
-ppfs_da = da.stack(ppfs, axis=0)
-
-
-
-# Convert the dask array back to an xarray DataArray
-GAEZ_MC = xr.DataArray(
-    ppf_da,
-    dims=('sample',) + GAEZ_yield_std.dims,
-    coords={'sample': np.arange(normalized_samples.shape[0]), **GAEZ_yield_std.coords}
-)
-
-
-
-# Adjust the yield by the yearbook trend
-GAEZ_MC_adj_yb = GAEZ_MC * yearbook_trend_ratio['mean']
-
-# Generate the Monte Carlo simulation
-GAEZ_adj_MC = xr.DataArray(
-    norm.ppf(0.5, loc=GAEZ_MC_adj_yb, scale=GAEZ_yield_std),
-    dims=GAEZ_MC_adj_yb.dims,
-    coords=GAEZ_MC_adj_yb.coords
-)
-
-# Add the yearbook trend uncertainty range to the yield
-GAEZ_MC_adj_yb = GAEZ_MC_adj_yb + yearbook_range
-
-# Rechunk data to ~100MB chunks
-chunk_size = {i:1 for i in GAEZ_MC_adj_yb.dims}
-chunk_size.update({'sample': sample_size, 'y': 100, 'x': -1})
-GAEZ_MC_adj_yb = GAEZ_MC_adj_yb.chunk(chunk_size)
-
-with Progressbar():
-    mean = GAEZ_MC_adj_yb.mean(dim='sample').compute()
-    std = GAEZ_MC_adj_yb.std(dim='sample').compute()
-
-
-mean.name = 'data'
-std.name = 'data'
-encoding = {'data': {'zlib': True, 'complevel': 9, 'dtype': 'float32'}}
-mean.to_netcdf('data/results/step_7_GAEZ_MC_adj_yb_mean.nc', encoding=encoding)
-std.to_netcdf('data/results/step_7_GAEZ_MC_adj_yb_std.nc', encoding=encoding)
 
 
