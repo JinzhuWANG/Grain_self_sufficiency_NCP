@@ -26,7 +26,7 @@ yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolate
 
 mask = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 mask = [xr.where(mask == idx, 1, 0).expand_dims({'Province': [p]}) for idx,p in enumerate(UNIQUE_VALUES['Province'])]
-mask = xr.combine_by_coords(mask)
+mask = xr.combine_by_coords(mask).astype('float32') 
 
 GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')
 GAEZ_yield_mean = GAEZ_yield_mean['data'].sel(year=slice(2020, 2101)).astype('float32').chunk(chunk_size)
@@ -53,9 +53,11 @@ Yearbook_MC = xr.DataArray(
     Yearbook_MC, 
     dims=('sample',) + yearbook_trend['mean'].dims, 
     coords={'sample':range(Monte_Carlo_num), **yearbook_trend['mean'].coords}
-    ) 
-Yearbook_MC = Yearbook_MC * mask
+    )
 Yearbook_MC.name = 'data'
+
+# Multiply by the mask, so all pixels inside a province have the same value
+Yearbook_MC = Yearbook_MC * mask    
 
 
 

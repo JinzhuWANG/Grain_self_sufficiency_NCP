@@ -14,7 +14,6 @@ from scipy.stats import norm, truncnorm
 from helper_func.parameters import (BASE_YR, 
                                     TARGET_YR,
                                     PRED_STEP,
-                                    Monte_Carlo_num,
                                     Province_names_cn_en)
 
 
@@ -110,7 +109,9 @@ def fit_linear_model(df):
     return extrapolate_df
 
 
-def sample_ppf(mean, std, n_samples=100):
+def sample_ppf(mean, std, n_samples=100, seed=0):
+    
+    np.random.seed(seed)
     
     # Normalize the samples to the range [0, 1]
     a,b = 0.025, 0.975
