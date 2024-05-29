@@ -5,8 +5,7 @@ import plotnine
 # from helper_func import fit_linear_model
 from helper_func import fit_linear_model
 from helper_func.get_yearbook_records import get_yearbook_yield
-from helper_func.parameters import UNIQUE_VALUES
-
+from helper_func.parameters import BASE_YR, UNIQUE_VALUES
 
 # Read the yearbook yield data
 yearbook_yield = get_yearbook_yield().query('year >= 1990')
@@ -55,7 +54,7 @@ if __name__ == '__main__':
     plotnine.options.dpi = 100
     
     g = (plotnine.ggplot() +
-         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'),alpha=0.5,size=0.2) +
+         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), alpha=0.5, size=0.2) +
          plotnine.geom_line(yearbook_yield_fitted,
                             plotnine.aes(x='year', y='mean' )
                             ) +

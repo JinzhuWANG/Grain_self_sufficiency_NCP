@@ -1,4 +1,5 @@
 
+from asyncio import tasks
 import numpy as np
 import pandas as pd
 
@@ -110,21 +111,24 @@ def fit_linear_model(df):
 
 
 def sample_ppf(mean, std, n_samples=100, seed=0):
-    
     np.random.seed(seed)
     
     # Normalize the samples to the range [0, 1]
-    a,b = 0.025, 0.975
+    a, b = 0.025, 0.975
     loc, scale = 0.5, 0.1
     a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
     samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
-
-    # Calculate the samples
-    task = [delayed(norm.ppf)(n,  loc=mean, scale=std) for  n in samples]
+    
+    # Use a consistent random seed within the parallel execution
+    def calculate_ppf(x):
+        np.random.seed(seed)  # Ensure the seed is set for each worker
+        return norm.ppf(x, loc=mean, scale=std)
+    
+    tasks = [delayed(calculate_ppf)(n) for n in samples]
     para_obj = Parallel(n_jobs=-1, prefer='threads', return_as='generator')
-
+    
     ppf_xr = []
-    for res in tqdm(para_obj(task), total=n_samples):
+    for res in tqdm(para_obj(tasks), total=n_samples):
         ppf_xr.append(res.astype('float32'))
-
+    
     return da.from_array(ppf_xr)
