@@ -1,84 +1,98 @@
-import numpy as np
 import xarray as xr
-import dask.array as da
+import plotnine
+import rioxarray as rxr
 
-from joblib import Parallel, delayed
-from tqdm.auto import tqdm
-from scipy.stats import norm, truncnorm
-from dask.diagnostics import ProgressBar as Progressbar
+from helper_func import sample_ppf
+from helper_func.parameters import UNIQUE_VALUES, Monte_Carlo_num
 
 
-# Read data
-yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolated.nc')
-yearbook_trend_ratio = yearbook_trend['mean'] / yearbook_trend.sel(year=2020)['mean']
-yearbook_trend_ratio = yearbook_trend_ratio
 
-# Read the GAEZ data
+# Define parameters
 chunk_size = {
-    'crop': 1,
+    'crop': 3,
     'water_supply': 2,
     'y': 160,
     'x': 149,
     'band': 1,
-    'year': 2,
-    'rcp': 2,
+    'year': 1,
+    'rcp': 4,
     'c02_fertilization': 2
 }
+
+
+
+# Read data
+yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolated.nc')
+
+mask = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
+mask = [xr.where(mask == idx, 1, 0).expand_dims({'Province': [p]}) for idx,p in enumerate(UNIQUE_VALUES['Province'])]
+mask = xr.combine_by_coords(mask)
 
 GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')
 GAEZ_yield_mean = GAEZ_yield_mean['data'].sel(year=slice(2020, 2101)).astype('float32').chunk(chunk_size)
 
-GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc')['data'].sel(year=slice(2020, 2101))
+GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc') / 1000   # kg/ha to t/ha
+GAEZ_yield_std = GAEZ_yield_std['data'].sel(year=slice(2020, 2101))
 GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).astype('float32')
 GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3).chunk(chunk_size)
 
 
-# Normalize the samples to the range [0, 1]
-n_samples = 100
-a,b = 0.025, 0.975
-loc, scale = 0.5, 0.1
-a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
-samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
+# Sample from GAEZ mean and std
+GAEZ_MC = sample_ppf(GAEZ_yield_mean, GAEZ_yield_std, n_samples=Monte_Carlo_num)
+GAEZ_MC = xr.DataArray(
+    GAEZ_MC, 
+    dims=('sample',) + GAEZ_yield_mean.dims, 
+    coords={'sample':range(Monte_Carlo_num), **GAEZ_yield_mean.coords}
+    )
+GAEZ_MC.name = 'data'
 
 
-def compute_ppf(p, mean, std):
-    return norm.ppf(p, loc=mean, scale=std) 
+# Sample from yearbook trend
+Yearbook_MC = sample_ppf(yearbook_trend['mean'], yearbook_trend['std'], n_samples=Monte_Carlo_num)
+Yearbook_MC = xr.DataArray(
+    Yearbook_MC, 
+    dims=('sample',) + yearbook_trend['mean'].dims, 
+    coords={'sample':range(Monte_Carlo_num), **yearbook_trend['mean'].coords}
+    ) 
+Yearbook_MC = Yearbook_MC * mask
+Yearbook_MC.name = 'data'
 
 
-# Function to sample percentiles from the mean and std arrays
-def sample_from_arr(n, idx=0):
-    ppf_da = da.map_blocks(
-        compute_ppf, 
-        n, 
-        GAEZ_yield_mean, 
-        GAEZ_yield_std, 
-        dtype=GAEZ_yield_mean.dtype,
-        chunks=GAEZ_yield_mean.data.chunks
-    )[None, ...]
+
+
+
+
+# Save the data
+encoding = {'data': {'dtype': 'float32', 'zlib': True}}
+GAEZ_MC.to_netcdf('data/results/step_7_GAEZ_actual_MC.nc', encoding=encoding, engine='h5netcdf')
+
+
+
+
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    GAEZ_mean = GAEZ_yield_mean.sel(year=2070)
+    GAEZ_MC_mean = GAEZ_MC.mean(dim='sample').sel(year=2070).compute()
+    diff = GAEZ_mean - GAEZ_MC_mean
+
+    # Histogram
+    plotnine.options.figure_size = (16, 6)
+    plotnine.options.dpi = 100
     
-    ppf_da = xr.DataArray(
-        ppf_da, 
-        dims=('sample',) + GAEZ_yield_mean.dims, 
-        coords={'sample':[idx], **GAEZ_yield_mean.coords},
-        name=None)
+    g = (plotnine.ggplot() +
+        plotnine.geom_histogram(diff.to_dataframe().query('data > 0'), plotnine.aes(x='data'), bins=30, fill='red', alpha=0.5) +
+        plotnine.theme_bw()
+        )
     
-    ppf_da.name = None 
-    
-    return ppf_da
-
-
-task = [delayed(sample_from_arr)(n, idx) for idx, n in enumerate(samples)]
-para_obj = Parallel(n_jobs=-1, prefer='threads', return_as='generator')
-
-ppf_xr = []
-for res in tqdm(para_obj(task), total=n_samples):
-    ppf_xr.append(res)
-
-ppf_xr = xr.combine_by_coords(ppf_xr).chunk({'sample': -1})
-
-
-
-with Progressbar():
-    ppf_mean = ppf_xr.mean(dim='sample').compute()
-
+    # Map
+    diff[0,0,...,0,0,0].plot()
+   
 

@@ -7,6 +7,10 @@ import statsmodels.api as sm
 import dask.array as da
 import xarray
 
+from joblib import Parallel, delayed
+from tqdm.auto import tqdm
+from scipy.stats import norm, truncnorm
+
 from helper_func.parameters import (BASE_YR, 
                                     TARGET_YR,
                                     PRED_STEP,
@@ -106,4 +110,20 @@ def fit_linear_model(df):
     return extrapolate_df
 
 
+def sample_ppf(mean, std, n_samples=100):
+    
+    # Normalize the samples to the range [0, 1]
+    a,b = 0.025, 0.975
+    loc, scale = 0.5, 0.1
+    a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
+    samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
 
+    # Calculate the samples
+    task = [delayed(norm.ppf)(n,  loc=mean, scale=std) for  n in samples]
+    para_obj = Parallel(n_jobs=-1, prefer='threads', return_as='generator')
+
+    ppf_xr = []
+    for res in tqdm(para_obj(task), total=n_samples):
+        ppf_xr.append(res.astype('float32'))
+
+    return da.from_array(ppf_xr)
