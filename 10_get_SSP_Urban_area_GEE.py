@@ -59,7 +59,7 @@ def interpolate(df):
 stats_df = pd.concat(stats_dfs, ignore_index=True)
 stats_Li = stats_df.query('SSP1.isna()').copy()
 stats_Li = stats_Li[['year', 'EN_Name', 'ssp','sum']]
-stats_Li.rename(columns={'EN_Name': 'Province', 'sum':'area_km2'}, inplace=True)
+stats_Li = stats_Li.rename(columns={'EN_Name': 'Province', 'sum':'area_km2'})
 stats_Li['ratio'] = stats_Li.groupby(['Province', 'ssp'])['area_km2'].transform(lambda x: x / x.iloc[0])
 stats_Li = interpolate(stats_Li)
 
@@ -72,7 +72,7 @@ stats_Gao = interpolate(stats_Gao)
 
 
 # Apply the area increase ratio to historical data
-urban_area_hist = pd.read_csv('data/results/area_hist_df.csv')         
+urban_area_hist = pd.read_csv('data/results/step_8_area_hist_df.csv')         
 start_area = urban_area_hist.query('year == 2019')[['Province','Area_cumsum_km2']]
 pred_Li_ratio = start_area.merge(stats_Li, on='Province', how='left')
 pred_Li_ratio['area_km2_adj'] = pred_Li_ratio['Area_cumsum_km2'] * pred_Li_ratio['ratio']
@@ -89,19 +89,23 @@ pred_Gao_diff['Source'] = 'Gao et al. (2020)'
 
 
 # Save the results
-pred_Li_ratio.to_csv('data/results/Urban_SSP_pred_Li_ratio.csv', index=False)
-pred_Gao_diff.to_csv('data/results/Urban_SSP_pred_Gao_diff.csv', index=False)
+pred_Li_ratio.to_csv('data/results/step_9_Urban_SSP_pred_Li_ratio.csv', index=False)
+pred_Gao_diff.to_csv('data/results/step_9_Urban_SSP_pred_Gao_diff.csv', index=False)
 
-pred_Li_ratio = pd.read_csv('data/results/Urban_SSP_pred_Li_ratio.csv')
-pred_Gao_diff = pd.read_csv('data/results/Urban_SSP_pred_Gao_diff.csv')
+pred_Li_ratio = pd.read_csv('data/results/step_9_Urban_SSP_pred_Li_ratio.csv')
+pred_Gao_diff = pd.read_csv('data/results/step_9_Urban_SSP_pred_Gao_diff.csv')
 
 if __name__ == "__main__":
+    
+    plotnine.options.figure_size = (12, 8)
+    plotnine.options.dpi = 100
     
     g = (plotnine.ggplot() +
          plotnine.geom_point(urban_area_hist, plotnine.aes(x='year', y='Area_cumsum_km2'), color='grey', size=0.05) +
          plotnine.geom_line(pred_Li_ratio, plotnine.aes(x='year', y='area_km2_adj', color='ssp', linetype='Source'), size=0.2) +
          plotnine.geom_line(pred_Gao_diff, plotnine.aes(x='year', y='area_km2_adj', color='ssp', linetype='Source'), size=0.2) +         
-         plotnine.facet_wrap('~Province') 
+         plotnine.facet_wrap('~Province') +
+         plotnine.theme_bw()  
          )
     
 
