@@ -99,8 +99,10 @@ def rasterize_chunk(da_block, gdf):
 
 # Apply the rasterization function using map_blocks
 result = lucc_xr.map_blocks(rasterize_chunk, kwargs={'gdf': region_shp}, template=lucc_xr)
-result.rio.to_raster('data/LUCC/LUCC_Province_mask.tif', chunks={ 'x': BLOCK_SIZE, 'y': BLOCK_SIZE}, dtype=np.int8, compress='lzw')
+result.name = 'data'
+encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9}}
 
+result.to_netcdf('data/LUCC/LUCC_Province_mask.nc', encoding=encoding, engine='h5netcdf')
 
 
 

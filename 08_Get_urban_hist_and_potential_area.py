@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
+import xarray as xr
+import rioxarray as rxr
 import dask
 import dask.array as da
-import h5py
 import plotnine
 
+from helper_func.calculate_GAEZ_stats import weighted_bincount
 from helper_func.parameters import UNIQUE_VALUES, BLOCK_SIZE
 from dask.diagnostics import ProgressBar
 
@@ -12,33 +14,31 @@ from dask.diagnostics import ProgressBar
 work_size = BLOCK_SIZE * 8
 
 
-# Read the lucc mask
-region_ds = h5py.File('data/LUCC/LUCC_Province_mask.hdf5', 'r')
-region_arr = da.from_array(region_ds['Array'], chunks=(work_size, work_size))
+# Read data
+mask_province = rxr.open_rasterio('data/LUCC/LUCC_Province_mask.tif').data
+mask = xr.where(mask_province >= 0, 1, 0)
 
-
-# Read the lucc area
-lucc_area_ds = h5py.File('data/LUCC/LUCC_area_km2.hdf5', 'r')
-lucc_area_area = da.from_array(lucc_area_ds['area'], chunks=(work_size, work_size)) 
-
-
-# Read the urban data
-urban_ds = h5py.File('data/LUCC/Urban_1990_2019.hdf5', 'r')
-urban_arr = da.from_array(urban_ds['Array'], chunks=(1,work_size, work_size))
-urban_arr = urban_arr.squeeze(0)
-
-
-# Read the urban potential data
-urban_potential_ds = h5py.File('data/LUCC/Transition_potential.hdf5', 'r')
-urban_potential_arr = da.from_array(urban_potential_ds['Array'], chunks=(1,work_size, work_size))
-urban_potential_arr = urban_potential_arr.squeeze(0)
-
+urban_arr = rxr.open_rasterio('data/LUCC/Norm_Urban_1990_2019.tif').data
+urban_potential_arr = rxr.open_rasterio('data/LUCC/Norm_Transition_potential.tif').data
+lucc_area_area = rxr.open_rasterio('data/LUCC/LUCC_Area_km2.tif').data
 
 # Encode year and province to a single array
 year_base = 100
 potential_base = 10000
-urban_year_region = region_arr.astype(np.uint32) * year_base + urban_arr
-urban_potential_region = region_arr.astype(np.uint32) * potential_base + urban_potential_arr.astype(np.uint32)
+urban_year_region = mask_province.astype(np.uint32) * year_base + urban_arr
+urban_potential_region = mask_province.astype(np.uint32) * potential_base + urban_potential_arr.astype(np.uint32)
+
+
+urban_year_region_max =  mask_province.max().compute() * year_base + urban_arr.max().compute()
+urban_potential_region_max = mask_province.max().compute() * potential_base + urban_potential_arr.max().compute()
+
+
+area_hist = da.map_blocks(
+    weighted_bincount, 
+    urban_year_region, 
+    lucc_area_area,
+     
+    dtype=np.float32)
 
 
 
