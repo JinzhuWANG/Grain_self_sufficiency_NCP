@@ -1,6 +1,9 @@
 import affine
 import os
 import rasterio
+import rioxarray as rxr
+
+
 from osgeo import gdal
 from shapely.geometry import box
 
@@ -100,7 +103,11 @@ if __name__ == '__main__':
         ds = read_tifs(v)
         dtype = ds.dtypes[0]
         with WarpedVRT(ds, **warp_option) as vrt:
-            rio_shutil.copy(vrt, f"data/LUCC/{k}.tif", driver='GTiff', dtype=dtype, **copy_option)
+            ds =  rxr.open_rasterio(vrt)
+            ds.name = 'data'
+            encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9, 'chunksizes': (1, BLOCK_SIZE, BLOCK_SIZE)}}
+            ds.to_netcdf(f"data/LUCC/{k}.nc", encoding=encoding, engine='h5netcdf')
+            # rio_shutil.copy(vrt, f"data/LUCC/{k}.tif", driver='GTiff', dtype=dtype, **copy_option)
         
 
 

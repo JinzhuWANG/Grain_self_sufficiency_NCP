@@ -1,4 +1,6 @@
+import chunk
 import numpy as np
+from pyparsing import C
 import xarray as xr
 import rasterio
 import rioxarray
@@ -100,7 +102,7 @@ def rasterize_chunk(da_block, gdf):
 # Apply the rasterization function using map_blocks
 result = lucc_xr.map_blocks(rasterize_chunk, kwargs={'gdf': region_shp}, template=lucc_xr)
 result.name = 'data'
-encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9}}
+encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9, 'chunksizes': (1, BLOCK_SIZE, BLOCK_SIZE)}}
 
 result.to_netcdf('data/LUCC/LUCC_Province_mask.nc', encoding=encoding, engine='h5netcdf')
 
