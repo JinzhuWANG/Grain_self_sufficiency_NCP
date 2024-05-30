@@ -55,7 +55,7 @@ std_xr.to_netcdf('data/results/step_1_GAEZ_4_attain_std.nc', encoding=encoding, 
 if __name__ == '__main__':
     # Get the mask
     mask_province = rioxarray.open_rasterio('data/GAEZ_v4/Province_mask.tif')
-    GAEZ_area = rioxarray.open_rasterio('data/GAEZ_v4/GAEZ_area_km2.tif')       # km2
+    GAEZ_area = xr.open_dataset('data/GAEZ_v4/GAEZ_area_km2.nc')['data']        # km2
 
     # bincount the mask to get the sum for each province
     mean_xr_t = mean_xr * GAEZ_area / 10                # (kg/ha) * km2 / 10 = t

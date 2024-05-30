@@ -15,22 +15,21 @@ work_size = BLOCK_SIZE * 8
 
 
 # Read data
-mask_province = rxr.open_rasterio('data/LUCC/LUCC_Province_mask.tif').data
+mask_province = xr.open_dataset('data/LUCC/LUCC_Province_mask.nc', chunks={'y': work_size, 'x': work_size})['data']
 mask = xr.where(mask_province >= 0, 1, 0)
 
-urban_arr = rxr.open_rasterio('data/LUCC/Norm_Urban_1990_2019.tif').data
-urban_potential_arr = rxr.open_rasterio('data/LUCC/Norm_Transition_potential.tif').data
-lucc_area_area = rxr.open_rasterio('data/LUCC/LUCC_Area_km2.tif').data
+urban_arr = xr.open_dataset('data/LUCC/Norm_Urban_1990_2019.nc', chunks={'y': work_size, 'x': work_size})['data']
+
+
 
 # Encode year and province to a single array
 year_base = 100
-potential_base = 10000
-urban_year_region = mask_province.astype(np.uint32) * year_base + urban_arr
-urban_potential_region = mask_province.astype(np.uint32) * potential_base + urban_potential_arr.astype(np.uint32)
-
 
 urban_year_region_max =  mask_province.max().compute() * year_base + urban_arr.max().compute()
 urban_potential_region_max = mask_province.max().compute() * potential_base + urban_potential_arr.max().compute()
+
+
+
 
 
 area_hist = da.map_blocks(

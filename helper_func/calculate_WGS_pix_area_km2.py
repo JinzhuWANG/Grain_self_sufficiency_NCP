@@ -1,13 +1,7 @@
-import chunk
-from affine import Affine
-from numpy import tile
-from pyproj import CRS
-import rasterio
-import h5py
+import xarray as xr
+import rioxarray as rxr
 import dask.array as da
 
-from glob import glob
-from dask.diagnostics import ProgressBar
 
 from helper_func.parameters import BLOCK_SIZE
 
@@ -39,37 +33,30 @@ def haversine(coord1, coord2):
 
 
 
-def calculate_area(tif:str, chunk_size:int=BLOCK_SIZE):
+def calculate_area(path:str, chunk_size:int=BLOCK_SIZE, output_path:str=None):
     """
-    Calculate the area of each pixel in a raster image.
+    Calculate the area of each pixel in a raster dataset.
 
     Parameters:
-    tif (str): The path to the raster image file.
-    chunk_size (int): The chunk size for processing the image. Default is BLOCK_SIZE.
+    path (str): The path to the raster dataset.
+    chunk_size (int, optional): The chunk size for processing the raster dataset. Defaults to BLOCK_SIZE.
+    output_path (str, optional): The path to save the output raster dataset. Defaults to None.
 
     Returns:
-    tuple: A tuple containing the metadata of the raster image and an array of pixel areas.
+    None
     """
 
     # Get the meta information of the raster
-    with rasterio.open(tif) as src:
-        meta = src.meta.copy()
-        width, height = meta['width'], meta['height']
-        transform = meta['transform']
-        
-    # Check if the raster is in a geographic coordinate system
-    if not meta['crs'].is_geographic:
-        raise ValueError("The raster is not in a geographic coordinate (Lon/Lat) system!")
-    
-    # Update meta
-    meta.update(compress='lzw',
-                dtype=rasterio.float32,
-                tiled=True,
-                blockxsize=BLOCK_SIZE,
-                blockysize=BLOCK_SIZE,
-                count=1,
-                nodata=None)
-    
+    if path.endswith('.nc'):
+        src = xr.open_dataset(path)
+    elif path.endswith('.tif') or path.endswith('.tiff'):
+        src = rxr.open_rasterio(path)
+        src = xr.Dataset({'data': src})
+    else:
+        raise ValueError('Only (.nc) and (.tif/.tiff) files are supported.')
+
+    width, height, transform = src.rio.width, src.rio.height, src.rio.transform()
+
     # Generate pixel coordinates
     rows, cols = da.arange(height, chunks=chunk_size), da.arange(width,chunks=chunk_size)
     row_coords, col_coords = da.meshgrid(rows, cols, indexing='ij')
@@ -93,9 +80,13 @@ def calculate_area(tif:str, chunk_size:int=BLOCK_SIZE):
     # Calculate the area of each pixel
     length_right = haversine(xy_coords, xy_coords_right)
     length_bottom = haversine(xy_coords, xy_coords_bottom)
+    
     area_arry = length_right * length_bottom
+    area_arry = area_arry.astype('float32')[None,...]
 
-    return meta, area_arry
+    src['data'].values = area_arry
+    encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9}}
+    src.to_netcdf(output_path, encoding=encoding, engine='h5netcdf')
 
         
 
