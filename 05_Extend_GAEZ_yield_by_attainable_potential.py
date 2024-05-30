@@ -9,8 +9,8 @@ from helper_func.parameters import UNIQUE_VALUES
 
 
 # Load the data
-GAEZ_attain_mean = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_mean.nc")['data']
-GAEZ_attain_std = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_std.nc")['data']
+GAEZ_attain_mean = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_mean.nc")['data']        # t/ha
+GAEZ_attain_std = xr.open_dataset("data/results/step_3_GAEZ_AY_GYGA_std.nc")['data']/1000     # kg/ha -> t/ha
 
 # Divide the start year to get ratio change
 GAEZ_attain_mean_ratio = GAEZ_attain_mean / GAEZ_attain_mean.sel(year=2020)
@@ -44,13 +44,13 @@ if __name__ == '__main__':
     yield_mean_stats = bincount_with_mask(mask_sum, GAEZ_actual_yield * mask_mean)
     yield_mean_stats = yield_mean_stats.rename(columns={'Value': 'yield', 'bin': 'Province'})
     
-    yield_std_stats = bincount_with_mask(mask_sum, GAEZ_attain_std * mask_mean / 1000)            # kg/ha -> t/ha
+    yield_std_stats = bincount_with_mask(mask_sum, GAEZ_attain_std * mask_mean )           
     yield_std_stats = yield_std_stats.rename(columns={'Value': 'yield_std', 'bin': 'Province'})
 
     yield_stats = yield_mean_stats.merge(yield_std_stats, how='left')
     yield_stats['upper'] = yield_stats['yield'] + 1.96 * yield_stats['yield_std']
     yield_stats['lower'] = yield_stats['yield'] - 1.96 * yield_stats['yield_std']
-    yield_stats.loc[:, 'Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    yield_stats['Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     
     rcp='RCP2.6'

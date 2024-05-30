@@ -28,10 +28,10 @@ mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 mask_province = [xr.where(mask_sum == idx, 1, 0).expand_dims({'Province': [p]}) for idx,p in enumerate(UNIQUE_VALUES['Province'])]
 mask_province = xr.combine_by_coords(mask_province).astype('float32') 
 
-GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')
+GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')                       # t/ha
 GAEZ_yield_mean = GAEZ_yield_mean['data'].sel(year=slice(2020, 2101)).astype('float32').chunk(chunk_size)
 
-GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc') / 1000   # kg/ha to t/ha
+GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc') / 1000                           # kg/ha -> t/ha
 GAEZ_yield_std = GAEZ_yield_std['data'].sel(year=slice(2020, 2101))
 GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).astype('float32')
 GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3).chunk(chunk_size)
@@ -74,17 +74,42 @@ Yearbook_MC_ratio.to_netcdf('data/results/step_7_Yearbook_MC_ratio.nc', encoding
 
 if __name__ == '__main__':
     
+    plotnine.options.figure_size = (16, 6)
+    plotnine.options.dpi = 100
+    
+    rcp = 'RCP2.6'
+    co2 = 'With CO2 Fertilization'
+    
+    mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+    
     # Check the difference between GAEZ and GAEZ_MC
-    GAEZ_mean = GAEZ_yield_mean.sel(year=2070)
-    GAEZ_std = GAEZ_yield_std.sel(year=2070)
-    GAEZ_MC_mean = GAEZ_MC.mean(dim='sample').sel(year=2070).compute()
-    GAEZ_MC_std = GAEZ_MC.std(dim='sample').sel(year=2070).compute()
+    GAEZ_MC_mean = GAEZ_MC.mean(dim='sample').compute()
+    GAEZ_MC_std = GAEZ_MC.std(dim='sample').compute()
     
-    diff_mean = GAEZ_mean - GAEZ_MC_mean  
-    diff_std = GAEZ_MC_std - GAEZ_std 
+    yield_mean_stats = bincount_with_mask(mask_sum, GAEZ_MC_mean * mask_mean)
+    yield_std_stats = bincount_with_mask(mask_sum, GAEZ_MC_std * mask_mean)      
     
-    diff_mean[0,0,...,0,0,0].plot()
-    diff_std[0,0,...,0,0,0].plot()
+    yield_stats = yield_mean_stats.merge(
+        yield_std_stats, 
+        on = ['bin','crop', 'water_supply', 'year', 'rcp', 'c02_fertilization'], 
+        suffixes = ('_mean', '_std')
+    )
+    
+    yield_stats = yield_stats.rename(columns={ 'bin': 'Province', 'Value_std': 'yield_std', 'Value_mean': 'yield_mean',})
+    yield_stats['Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    
+    plot_df = yield_stats.query(f"rcp == '{rcp}' & c02_fertilization == '{co2}'").copy()
+    plot_df['upper'] = plot_df['yield_mean'] + plot_df['yield_std'] * 1.96
+    plot_df['lower'] = plot_df['yield_mean'] - plot_df['yield_std'] * 1.96
+
+    g = (plotnine.ggplot() +
+        plotnine.geom_line(plot_df, plotnine.aes(x='year', y='yield_mean', color='water_supply')) +
+        plotnine.geom_ribbon(plot_df, plotnine.aes(x='year', ymin='lower', ymax='upper', fill='water_supply'), alpha=0.4) +
+        plotnine.labs(x='Year', y='Yield (t/ha)') +
+        plotnine.facet_grid('crop~Province', scales='free_y') +
+        plotnine.theme_bw() 
+        )
+    
     
     
     # Multiply the GAEZ_MC by the Yearbook_MC_ratio
@@ -92,7 +117,7 @@ if __name__ == '__main__':
     GAEZ_yb_mean = GAEZ_yb.mean(dim='sample').compute()
     GAEZ_yb_std = GAEZ_yb.std(dim='sample').compute()
     
-    mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
+    
     GAEZ_yb_mean_stats = bincount_with_mask(mask_sum, GAEZ_yb_mean * mask_mean)
     GAEZ_yb_std_stats = bincount_with_mask(mask_sum, GAEZ_yb_std * mask_mean)
     
@@ -108,11 +133,7 @@ if __name__ == '__main__':
     GAEZ_yb_stats['Province'] = GAEZ_yb_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     
-    plotnine.options.figure_size = (16, 6)
-    plotnine.options.dpi = 100
     
-    rcp = 'RCP2.6'
-    co2 = 'With CO2 Fertilization'
     plot_df = GAEZ_yb_stats.query(f"rcp == '{rcp}' & c02_fertilization == '{co2}'").copy()
     plot_df['upper'] = plot_df['Yield_mean (t/ha)'] + plot_df['Yield_std (t/ha)'] * 1.96
     plot_df['lower'] = plot_df['Yield_mean (t/ha)'] - plot_df['Yield_std (t/ha)'] * 1.96

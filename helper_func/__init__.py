@@ -113,11 +113,8 @@ def fit_linear_model(df):
 def sample_ppf(mean, std, n_samples=100, seed=0):
     np.random.seed(seed)
     
-    # Normalize the samples to the range [0, 1]
-    a, b = 0.025, 0.975
-    loc, scale = 0.5, 0.1
-    a_transformed, b_transformed = (a - loc) / scale, (b - loc) / scale
-    samples = truncnorm(a_transformed, b_transformed, loc=loc, scale=scale).rvs(size=n_samples)
+    # Get a uniform distribution between 0.001 and 0.999
+    samples = np.random.uniform(0.001, 0.999, n_samples)
     
     # Use a consistent random seed within the parallel execution
     def calculate_ppf(x):
