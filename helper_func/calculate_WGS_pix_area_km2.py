@@ -85,7 +85,7 @@ def calculate_area(path:str, chunk_size:int=BLOCK_SIZE, output_path:str=None):
     area_arry = area_arry.astype('float32')[None,...]
 
     src['data'].values = area_arry
-    encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9}}
+    encoding = {'data': {'zlib': True, 'dtype': 'float32', 'complevel': 9, 'chunksizes': (1, BLOCK_SIZE, BLOCK_SIZE)}}
     src.to_netcdf(output_path, encoding=encoding, engine='h5netcdf')
 
         
