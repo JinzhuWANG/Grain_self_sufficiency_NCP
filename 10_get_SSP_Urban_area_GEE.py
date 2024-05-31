@@ -15,7 +15,7 @@ ee.Initialize()
 # Import asset
 SSP_Li = ee.ImageCollection("projects/sat-io/open-datasets/global-urban-extents/project_urban_scenarios")
 SSP_Gao = ee.ImageCollection("projects/sat-io/open-datasets/FUTURE-URBAN-LAND/GAO_2020_2100")
-NCP_shape = ee.FeatureCollection("users/wangjinzhulala/North_China_Plain_Python/Boundary_shp/North_China_Plain_province_boundry");
+NCP_shape = ee.FeatureCollection("users/wangjinzhulala/North_China_Plain_Python/Boundary_shp/North_China_Plain_province_boundry")
 
 
 # Get the area
