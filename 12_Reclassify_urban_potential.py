@@ -1,11 +1,6 @@
-import dask.array as da
 import pandas as pd
-import h5py
-import rioxarray as rxr
-import rioxarray
 import xarray as xr
 
-from affine import Affine
 from helper_func.parameters import BLOCK_SIZE, UNIQUE_VALUES
 
 work_size = BLOCK_SIZE * 8
@@ -25,9 +20,13 @@ urban_potential_arr = region_arr * urban_potential_arr
 
 
 # Reclassify urban potential
-urban_potential_arr_reclass = xr.where(urban_potential_arr < potential_threshold, 0, 1).astype('int8')
-urban_potential_arr_reclass = urban_potential_arr_reclass.sum(dim='Province')
+urban_potential_arr_reclass = xr.where(urban_potential_arr < potential_threshold, 0, 1)
+urban_potential_arr_reclass = urban_potential_arr_reclass.sum(dim='Province').astype('bool')
+urban_potential_arr_reclass = urban_potential_arr_reclass.transpose('ssp', 'year','band','y', 'x')
 
+urban_potential_arr_reclass.name = 'data'
+encoding = {'data': {'dtype': 'bool', 'zlib': True, 'complevel': 9}}
+urban_potential_arr_reclass.to_netcdf('data/results/step_12_urban_potential_arr_reclass.nc', encoding=encoding, engine='h5netcdf')
 
 
 
