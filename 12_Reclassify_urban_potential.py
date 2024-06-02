@@ -29,7 +29,6 @@ urban_potential_arr_reclass = xr.where(urban_potential_arr < potential_threshold
 urban_potential_arr_reclass = urban_potential_arr_reclass.sum(dim='Province')
 
 
-urban_potential_arr_reclass[0,...,0,10][::100,::100].plot()
 
 
 
