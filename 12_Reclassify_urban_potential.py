@@ -34,9 +34,3 @@ urban_potential_arr_reclass.to_netcdf('data/results/step_12_urban_potential_arr_
 
 
 
-
-
-
-
-
-
