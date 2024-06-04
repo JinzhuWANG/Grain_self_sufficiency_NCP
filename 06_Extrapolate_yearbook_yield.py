@@ -20,6 +20,8 @@ for (province,crop), df in yearbook_yield_grouped:
     fitted_df = fit_linear_model(df)
     fitted_df.insert(0, 'Province', province)
     fitted_df.insert(1, 'crop', crop)
+    fitted_df['obs_ci_lower'] = fitted_df['mean'] - (fitted_df['std'] / math.sqrt(len(fitted_df)) * 1.96)
+    fitted_df['obs_ci_upper'] = fitted_df['mean'] + (fitted_df['std'] / math.sqrt(len(fitted_df)) * 1.96)
     fitted_dfs.append(fitted_df)
     
 yearbook_yield_fitted = pd.concat(fitted_dfs)
@@ -36,8 +38,10 @@ for province in UNIQUE_VALUES['Province']:
         
         if pred_mean < yearbook_base:
             yearbook_yield_fitted.loc[(yearbook_yield_fitted['Province'] == province) & (yearbook_yield_fitted['crop'] == crop), 'mean'] = yearbook_base
+            yearbook_yield_fitted.loc[(yearbook_yield_fitted['Province'] == province) & (yearbook_yield_fitted['crop'] == crop), 'std'] = pred_df['std']
             yearbook_yield_fitted.loc[(yearbook_yield_fitted['Province'] == province) & (yearbook_yield_fitted['crop'] == crop), 'obs_ci_lower'] = yearbook_base - (pred_df['std'] / math.sqrt(len(pred_df)) * 1.96)
             yearbook_yield_fitted.loc[(yearbook_yield_fitted['Province'] == province) & (yearbook_yield_fitted['crop'] == crop), 'obs_ci_upper'] = yearbook_base + (pred_df['std'] / math.sqrt(len(pred_df)) * 1.96)
+
 
 
 # Convert dataframes to xarray
