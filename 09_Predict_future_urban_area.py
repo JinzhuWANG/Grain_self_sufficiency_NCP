@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 import pymc as pm
 import plotnine
@@ -77,8 +78,8 @@ if __name__ == '__main__':
         post_df = post_pred.posterior_predictive['y'].to_dataframe().reset_index()
         post_df = post_df.groupby(['obs_id'])[['y']].agg(['mean','std']).reset_index(drop=True)
         post_df.columns = post_df.columns.droplevel(0)
-        post_df['upper'] = post_df['mean'] + 1.96 * post_df['std']
-        post_df['lower'] = post_df['mean'] - 1.96 * post_df['std']
+        post_df['upper'] = post_df['mean'] + (1.96 * post_df['std'] / math.sqrt(len(post_df)))
+        post_df['lower'] = post_df['mean'] - (1.96 * post_df['std'] / math.sqrt(len(post_df)))
         post_df['year'] = GDP_POP_NCP_pred['year']
         post_df['Province'] = GDP_POP_NCP_pred['Province']
         post_df['SSP'] = GDP_POP_NCP_pred['SSP']

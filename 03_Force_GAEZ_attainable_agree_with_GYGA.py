@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 import plotnine
 import rioxarray as rxr
@@ -83,8 +84,8 @@ if __name__ == '__main__':
     rcp = 'RCP2.6'
     c02_fertilization = 'With CO2 Fertilization'
     GAEZ_PY_df = GAEZ_df.query(f"rcp == '{rcp}' & c02_fertilization == '{c02_fertilization}'").copy()
-    GAEZ_PY_df['obs_ci_lower'] = GAEZ_PY_df['Value_mean'] - (GAEZ_PY_df['Value_std'] * 1.96)
-    GAEZ_PY_df['obs_ci_upper'] = GAEZ_PY_df['Value_mean'] + (GAEZ_PY_df['Value_std'] * 1.96)
+    GAEZ_PY_df['obs_ci_lower'] = GAEZ_PY_df['Value_mean'] - (GAEZ_PY_df['Value_std'] / math.sqrt(len(GAEZ_PY_df)) * 1.96)
+    GAEZ_PY_df['obs_ci_upper'] = GAEZ_PY_df['Value_mean'] + (GAEZ_PY_df['Value_std'] / math.sqrt(len(GAEZ_PY_df)) * 1.96)
       
     # Plot the yield for each province of both yearbook and GAEZ
     plotnine.options.figure_size = (16, 6)

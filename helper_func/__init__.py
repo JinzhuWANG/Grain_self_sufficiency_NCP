@@ -48,7 +48,7 @@ def read_yearbook(path:str, record_name:str=None, city_cn_en:dict=Province_names
 
     if record_name in {'Wheat', 'Wetland rice', 'Maize'}:
         df['crop'] = record_name
-    elif record_name in {'GDP', 'population'}:
+    else:
         df['type'] = record_name
 
     # fitler df and replace CN to EN
@@ -100,11 +100,11 @@ def fit_linear_model(df):
     pred_years = sm.add_constant(pred_years)
     
     extrapolate_df = model.get_prediction(pred_years)
-    extrapolate_df = extrapolate_df.summary_frame(alpha=0.05)
+    extrapolate_df = extrapolate_df.summary_frame(alpha=0.32)   # 0.68 CI indicates the mean+/-std
     
-    extrapolate_df['std'] = (extrapolate_df['obs_ci_upper'] - extrapolate_df['obs_ci_lower']) / (2 * 1.96)
+    extrapolate_df['std'] = (extrapolate_df['obs_ci_upper'] - extrapolate_df['mean'])
     extrapolate_df['year'] = pred_years['year']
-    extrapolate_df = extrapolate_df[['year','mean', 'std','obs_ci_upper','obs_ci_lower']]
+    extrapolate_df = extrapolate_df[['year','mean', 'std']]
 
 
     return extrapolate_df

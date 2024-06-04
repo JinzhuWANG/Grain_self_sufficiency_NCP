@@ -1,3 +1,4 @@
+import math
 import xarray as xr
 import plotnine
 import rioxarray as rxr
@@ -99,8 +100,8 @@ if __name__ == '__main__':
     yield_stats['Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     plot_df = yield_stats.query(f"rcp == '{rcp}' & c02_fertilization == '{co2}'").copy()
-    plot_df['upper'] = plot_df['yield_mean'] + plot_df['yield_std'] * 1.96
-    plot_df['lower'] = plot_df['yield_mean'] - plot_df['yield_std'] * 1.96
+    plot_df['upper'] = plot_df['yield_mean'] + (plot_df['yield_std'] / math.sqrt(len(plot_df)) * 1.96)
+    plot_df['lower'] = plot_df['yield_mean'] - (plot_df['yield_std'] / math.sqrt(len(plot_df)) * 1.96)
 
     g = (plotnine.ggplot() +
         plotnine.geom_line(plot_df, plotnine.aes(x='year', y='yield_mean', color='water_supply')) +
@@ -135,8 +136,8 @@ if __name__ == '__main__':
     
     
     plot_df = GAEZ_yb_stats.query(f"rcp == '{rcp}' & c02_fertilization == '{co2}'").copy()
-    plot_df['upper'] = plot_df['Yield_mean (t/ha)'] + plot_df['Yield_std (t/ha)'] * 1.96
-    plot_df['lower'] = plot_df['Yield_mean (t/ha)'] - plot_df['Yield_std (t/ha)'] * 1.96
+    plot_df['upper'] = plot_df['Yield_mean (t/ha)'] + (plot_df['Yield_std (t/ha)'] / math.sqrt(len(plot_df) * 1.96))
+    plot_df['lower'] = plot_df['Yield_mean (t/ha)'] - (plot_df['Yield_std (t/ha)'] / math.sqrt(len(plot_df) * 1.96))
         
     g = (plotnine.ggplot(plot_df) +
          plotnine.geom_line(plotnine.aes(x = 'year', y = 'Yield_mean (t/ha)', color = 'water_supply')) +

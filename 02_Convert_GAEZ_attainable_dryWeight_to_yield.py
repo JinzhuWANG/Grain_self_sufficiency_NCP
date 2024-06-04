@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
@@ -71,8 +72,8 @@ if __name__ == '__main__':
     rcp = "RCP4.5" 
     c02_fertilization = 'With CO2 Fertilization'
     GAEZ_yield_df = GAEZ_yield_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
-    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['Yield t/ha_mean'] - (GAEZ_yield_df['Yield t/ha_std'] * 1.96)
-    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['Yield t/ha_mean'] + (GAEZ_yield_df['Yield t/ha_std'] * 1.96)
+    GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['Yield t/ha_mean'] - (GAEZ_yield_df['Yield t/ha_std'] / math.sqrt(len(GAEZ_yield_df)) * 1.96)
+    GAEZ_yield_df['obs_ci_upper'] = GAEZ_yield_df['Yield t/ha_mean'] + (GAEZ_yield_df['Yield t/ha_std'] / math.sqrt(len(GAEZ_yield_df)) * 1.96)
 
 
     # Plot the yield for each province of both yearbook and GAEZ

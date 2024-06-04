@@ -1,3 +1,4 @@
+import math
 import rioxarray as rxr
 import xarray as xr
 import numpy as np
@@ -48,8 +49,8 @@ if __name__ == '__main__':
     yield_std_stats = yield_std_stats.rename(columns={'Value': 'yield_std', 'bin': 'Province'})
 
     yield_stats = yield_mean_stats.merge(yield_std_stats, how='left')
-    yield_stats['upper'] = yield_stats['yield'] + 1.96 * yield_stats['yield_std']
-    yield_stats['lower'] = yield_stats['yield'] - 1.96 * yield_stats['yield_std']
+    yield_stats['upper'] = yield_stats['yield'] + (1.96 * yield_stats['yield_std'] / math.sqrt(len(yield_stats)) )
+    yield_stats['lower'] = yield_stats['yield'] - (1.96 * yield_stats['yield_std'] / math.sqrt(len(yield_stats)) )
     yield_stats['Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     
