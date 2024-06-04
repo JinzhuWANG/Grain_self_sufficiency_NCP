@@ -1,8 +1,8 @@
 import numpy as np
 import xarray as xr
 import rioxarray as rxr
-import dask.dataframe as dd
 
+from collections import defaultdict
 from itertools import product
 from dask.diagnostics import ProgressBar
 from rasterio.enums import Resampling
@@ -30,33 +30,47 @@ GAEZ_mask = xr.open_dataset('data/GAEZ_v4/GAEZ_mask.tif')
 
 
 # Read data
-urban_cells = xr.open_dataset('data/results/step_12_urban_potential_arr_reclass.nc', chunks='auto')
-GAEZ_uncoarsened = xr.open_dataset('data/results/step_13_GAEZ_uncoarsened.nc',chunks='auto')['id']
+urban_cells = xr.open_dataset('data/results/step_12_urban_potential_arr_reclass.nc', chunks='auto')['data']
 lucc_area = xr.open_dataset('data/LUCC/LUCC_Area_km2.nc', chunks='auto')['data']
 
-cropland_cells = xr.open_dataset('data/LUCC/Norm_CLCD_v01_2019.nc', chunks='auto')
+cropland_cells = xr.open_dataset('data/LUCC/Norm_CLCD_v01_2019.nc', chunks='auto')['data']
 cropland_cells = xr.where(cropland_cells == 1, 1, 0)     # Pixels of cropland are 1, all others are 0
+
 
 urban_occupy_cropland = xr.where(urban_cells & cropland_cells, 1, 0)
 urban_occupy_cropland = (urban_occupy_cropland * lucc_area).astype('float32')
 urban_occupy_cropland = urban_occupy_cropland.rio.write_crs(GAEZ_mask.rio.crs)
 
+GAEZ_uncoarsened = xr.open_dataset('data/results/step_13_GAEZ_uncoarsened.nc', chunks='auto')['id']
+GAEZ_uncoarsened = GAEZ_uncoarsened.chunk({
+    k:v 
+    for k,v in dict(urban_occupy_cropland.chunksizes).items() 
+    if k in ['band', 'y', 'x']})
 
 
-paralle_obj = Parallel(n_jobs=20, prefer='threads', return_as='generator')
 
-def reproject_match(ds, ssp, year, target, resampling=Resampling.sum):
-    return (ds,year), ds.sel(ssp=ssp, year=year).rio.reproject_match(target, resampling=resampling)
+def bincount_chunked(arr, ssp, year, msk):
+    return (ssp,year), np.bincount(msk.compute().flatten(), weights=arr.compute().flatten(), minlength=GAEZ_mask['band_data'].size)
 
+
+paralle_obj = Parallel(n_jobs=-1,  return_as='generator')
+
+    
 tasks = []
 for ssp, year in list(product(urban_occupy_cropland['ssp'].data, urban_occupy_cropland['year'].data)):
-    tasks.append(delayed(reproject_match)(urban_occupy_cropland, ssp, year, GAEZ_mask, Resampling.sum))
+    for msk, arr in zip(GAEZ_uncoarsened.data.to_delayed().flatten(), 
+                        urban_occupy_cropland.sel(ssp=ssp, year=year).data.to_delayed().flatten()): 
+        tasks.append(delayed(bincount_chunked)(arr, ssp, year, msk))
 
-outputs = []
+
+outputs = defaultdict(list)
 with tqdm(total=len(tasks)) as pbar:
-    for out in paralle_obj(tasks):
-        outputs.append(out)
-        pbar.update()  
+    for (ssp,year), out in paralle_obj(tasks):
+        outputs[ssp,year].append(out)
+        pbar.update()           
+
+
+
 
 
 
