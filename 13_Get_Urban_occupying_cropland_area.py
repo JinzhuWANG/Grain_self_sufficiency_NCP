@@ -1,11 +1,16 @@
 import numpy as np
+import plotnine
 import xarray as xr
+import rioxarray as rxr
 
 from collections import defaultdict
 from itertools import product
 from rasterio.enums import Resampling
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
+
+from helper_func.calculate_GAEZ_stats import bincount_with_mask
+from helper_func.parameters import UNIQUE_VALUES
 
 
 # # Uncoarsen GAEZ mask to the same resolution as LUCC mask
@@ -61,7 +66,7 @@ for ssp, year in list(product(urban_occupy_cropland['ssp'].data, urban_occupy_cr
 
 
 # Loop over the delayed objects and calculate the area of cropland occupied by urban expansion
-paralle_obj = Parallel(n_jobs=-1,  return_as='generator')
+paralle_obj = Parallel(n_jobs=-1, return_as='generator')
 
 outputs = defaultdict(list)
 with tqdm(total=len(tasks)) as pbar:
@@ -81,12 +86,49 @@ for (ssp,year), val in outputs.items():
     
     arrs.append(arr_sum)
     
+urban_occupy_cropland = xr.combine_by_coords(arrs)
+urban_occupy_cropland.name = 'data'  
+
+
+# Subtract the cropland loss for 2020 to align with the model baseline
+urban_occupy_cropland = urban_occupy_cropland - urban_occupy_cropland.sel(year=2020)
+
 
 # Save the results
 encoding = {'data': {'dtype': 'float32', 'zlib': True, 'complevel': 9}}
-
-urban_occupy_cropland = xr.combine_by_coords(arrs)
-urban_occupy_cropland.name = 'data'
 urban_occupy_cropland.to_netcdf('data/results/step_13_urban_occupy_cropland.nc', encoding=encoding, engine='h5netcdf')
 
+
+
+if __name__ == '__main__':
+    
+    # Read data
+    urban_occupy_cropland = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data']
+    mask_province = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif', chunks='auto')
+    
+    urban_eccopu_stats = bincount_with_mask(mask_province.astype('int8'), urban_occupy_cropland)
+    urban_eccopu_stats = urban_eccopu_stats.rename(columns={'bin': 'Province', 'Value': 'Farmland loss (km2)'})
+    urban_eccopu_stats['Province'] = urban_eccopu_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    
+    plotnine.options.figure_size = (10, 6)
+    plotnine.options.dpi = 100
+    
+    g = (
+        plotnine.ggplot() +
+        plotnine.geom_line(urban_eccopu_stats, 
+                           plotnine.aes(x='year', y='Farmland loss (km2)', color='ssp')) +
+        plotnine.facet_wrap('~Province', scales='free_y') +
+        plotnine.theme_bw()
+    )
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
