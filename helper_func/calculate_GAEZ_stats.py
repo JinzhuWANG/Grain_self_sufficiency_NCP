@@ -73,7 +73,8 @@ def bincount_with_mask(mask, xr_arr):
         dask='parallelized',
         kwargs={'minlength': int(mask_sum.max().values) + 1},
         output_dtypes=[float],
-        dask_gufunc_kwargs={'output_sizes': {'bin': int(mask.max().values) + 1}}
+        dask_gufunc_kwargs={'output_sizes': {'bin': int(mask.max().values) + 1},
+                            'allow_rechunk':True}
     )
     
     stats.name = 'Value'
