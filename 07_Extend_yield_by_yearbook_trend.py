@@ -86,15 +86,14 @@ Yield_with_Attain = Yield_MC_stats.merge(Attainable_stats,
 Yield_with_Attain['diff'] = abs(Yield_with_Attain['Value_yield'] - Yield_with_Attain['Value_attainable'])
 
 min_diff_yr = pd.DataFrame()
-for idx, df in Yield_with_Attain.groupby(['crop', 'water_supply', 'rcp', 'c02_fertilization']):
-    
+for idx, df in Yield_with_Attain.groupby(
+    ['crop', 'water_supply', 'rcp', 'c02_fertilization']):
     min_yr = pd.DataFrame([{
         'crop': idx[0],
         'water_supply': idx[1],
         'rcp': idx[2],
         'c02_fertilization': idx[3],
         'year':df.loc[df['diff'].idxmin()]['year']}])
-    
     min_diff_yr = pd.concat([min_diff_yr,min_yr])
 
 
