@@ -1,4 +1,5 @@
 import math
+from matplotlib import axis
 import rioxarray as rxr
 import xarray as xr
 import numpy as np
@@ -49,9 +50,16 @@ if __name__ == '__main__':
     yield_std_stats = yield_std_stats.rename(columns={'Value': 'yield_std', 'bin': 'Province'})
 
     yield_stats = yield_mean_stats.merge(yield_std_stats, how='left')
-    yield_stats['upper'] = yield_stats['yield'] + (1.96 * yield_stats['yield_std'] / math.sqrt(len(yield_stats)) )
-    yield_stats['lower'] = yield_stats['yield'] - (1.96 * yield_stats['yield_std'] / math.sqrt(len(yield_stats)) )
     yield_stats['Province'] = yield_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    yield_stats = yield_stats.sort_values(['rcp', 'crop', 'water_supply', 'c02_fertilization', 'Province', 'year'])
+    
+    yield_stats['upper'] = yield_stats.groupby(['rcp', 'crop', 'water_supply', 'c02_fertilization', 'Province'])[['yield','yield_std']]\
+        .apply(lambda x: x['yield'] + (1.96 * x['yield_std'] / math.sqrt(len(x)))).values
+    yield_stats['lower'] = yield_stats.groupby(['rcp', 'crop', 'water_supply', 'c02_fertilization', 'Province'])[['yield','yield_std']]\
+        .apply(lambda x: x['yield'] - (1.96 * x['yield_std'] / math.sqrt(len(x)))).values
+    
+    
+    
     
     
     rcp='RCP2.6'

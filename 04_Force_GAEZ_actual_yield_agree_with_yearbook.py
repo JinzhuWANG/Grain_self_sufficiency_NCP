@@ -81,7 +81,7 @@ if __name__ == '__main__':
     
     GAEZ_adj_yb_stats = pd.merge(GAEZ_adj_stats, yearbook_yield, on = ['crop', 'Province'], suffixes = ('_GAEZ', '_yearbook'))
 
-    plotnine.options.figure_size = (16, 6)
+    plotnine.options.figure_size = (10, 6)
     plotnine.options.dpi = 100
     g = (plotnine.ggplot(GAEZ_adj_yb_stats) +
             plotnine.geom_point(plotnine.aes(x = 'Yield (tonnes)', y = 'Yield_weighted', color = 'crop')) +

@@ -10,22 +10,33 @@ from helper_func.parameters import BASE_YR, UNIQUE_VALUES
 
 # Read the yearbook yield data
 yearbook_yield = get_yearbook_yield().query('year >= 1990')
+yearbook_yield = yearbook_yield.sort_values(['Province', 'crop', 'year'])
 yearbook_yield_grouped = yearbook_yield.groupby(['Province', 'crop'])
 
 
 
 # Function to fit a linear model to the data
-fitted_dfs = []
+yearbook_yield_fitted = pd.DataFrame()
 for (province,crop), df in yearbook_yield_grouped:
     fitted_df = fit_linear_model(df)
     fitted_df.insert(0, 'Province', province)
     fitted_df.insert(1, 'crop', crop)
     fitted_df['obs_ci_lower'] = fitted_df['mean'] - (fitted_df['std'] / math.sqrt(len(fitted_df)) * 1.96)
     fitted_df['obs_ci_upper'] = fitted_df['mean'] + (fitted_df['std'] / math.sqrt(len(fitted_df)) * 1.96)
-    fitted_dfs.append(fitted_df)
     
-yearbook_yield_fitted = pd.concat(fitted_dfs)
+    yearbook_yield_fitted = pd.concat([yearbook_yield_fitted, fitted_df])
+    
+    
+# Make the pred and yearbook the same at BASE_YR
+yearbook_BASE = yearbook_yield.query(f'year == {BASE_YR}').copy()
+pred_BASE = yearbook_yield_fitted.query(f'year == {BASE_YR}').copy()
 
+diff = pred_BASE.merge(yearbook_BASE, on=['Province', 'crop'], suffixes=('_pred', '_yearbook'))
+diff['diff'] = diff['Yield (tonnes)'] - diff['mean']
+diff = diff[['Province', 'crop', 'diff']]
+
+yearbook_yield_fitted = yearbook_yield_fitted.merge(diff, on=['Province', 'crop'], how='left')
+yearbook_yield_fitted[['mean', 'std', 'obs_ci_lower', 'obs_ci_upper']] = yearbook_yield_fitted[['mean', 'std', 'obs_ci_lower', 'obs_ci_upper']] + yearbook_yield_fitted['diff'].values.reshape(-1, 1)
 
 
 # If the prediction shows decrease in yield, set it to be the same as the <BASE_YR> of the yearbook data
