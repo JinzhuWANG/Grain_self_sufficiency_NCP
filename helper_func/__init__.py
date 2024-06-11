@@ -110,15 +110,13 @@ def fit_linear_model(df):
     return extrapolate_df
 
 
-def sample_ppf(mean, std, n_samples=100, seed=0):
-    np.random.seed(seed)
-    
+def sample_ppf(mean, std, n_samples=100):
+
     # Get a uniform distribution between 0.001 and 0.999
     samples = np.random.uniform(0.001, 0.999, n_samples)
     
-    # Use a consistent random seed within the parallel execution
+    # Calculate the percent point function (inverse of the CDF)
     def calculate_ppf(x):
-        np.random.seed(seed)  # Ensure the seed is set for each worker
         return norm.ppf(x, loc=mean, scale=std)
     
     tasks = [delayed(calculate_ppf)(n) for n in samples]

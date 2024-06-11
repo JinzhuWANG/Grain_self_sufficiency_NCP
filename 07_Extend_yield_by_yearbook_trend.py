@@ -32,7 +32,8 @@ yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolate
 
 mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
-mask_province = [xr.where(mask_sum == idx, 1, 0).expand_dims({'Province': [p]}) for idx,p in enumerate(UNIQUE_VALUES['Province'])]
+mask_province = [xr.where(mask_sum == idx, 1, 0).expand_dims({'Province': [p]}) 
+                 for idx,p in enumerate(UNIQUE_VALUES['Province'])]
 mask_province = xr.combine_by_coords(mask_province).astype('float32') 
 
 GAEZ_attainable_yield = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_mean.nc', chunks='auto')['data']/1000     # kg/ha -> t/ha
@@ -56,7 +57,6 @@ GAEZ_MC = xr.DataArray(
     )
 
 
-
 # Sample from yearbook trend
 Yearbook_MC = sample_ppf(yearbook_trend['mean'], yearbook_trend['std'], n_samples=Monte_Carlo_num)
 Yearbook_MC = xr.DataArray(
@@ -64,6 +64,7 @@ Yearbook_MC = xr.DataArray(
     dims=('sample',) + yearbook_trend['mean'].dims, 
     coords={'sample':range(Monte_Carlo_num), **yearbook_trend['mean'].coords}
     )
+
 
 # Assign ratio value to mask, so all pixels inside a province have the same value
 Yearbook_MC = Yearbook_MC * mask_province
@@ -75,13 +76,14 @@ Yearbook_MC_ratio = Yearbook_MC / Yearbook_MC.sel(year=2020)
 # Get the year when yield touches the attainable ceiling
 Yield_MC = GAEZ_MC * Yearbook_MC_ratio
 Yield_MC_mean = Yield_MC.mean(dim='sample')
-Yield_MC_stats = bincount_with_mask(mask_sum, Yield_MC_mean * mask_mean)
 
+Yield_MC_stats = bincount_with_mask(mask_sum, Yield_MC_mean * mask_mean)
 Attainable_stats = bincount_with_mask(mask_sum, GAEZ_attainable_yield * mask_mean)
 
-Yield_with_Attain = Yield_MC_stats.merge(Attainable_stats, 
-                                         on=['bin', 'crop', 'water_supply', 'year', 'rcp', 'c02_fertilization'],
-                                         suffixes=('_yield', '_attainable'))
+Yield_with_Attain = Yield_MC_stats.merge(
+    Attainable_stats, 
+    on=['bin', 'crop', 'water_supply', 'year', 'rcp', 'c02_fertilization'],
+    suffixes=('_yield', '_attainable'))
 
 Yield_with_Attain['diff'] = abs(Yield_with_Attain['Value_yield'] - Yield_with_Attain['Value_attainable'])
 
@@ -131,6 +133,7 @@ if __name__ == '__main__':
     plotnine.options.figure_size = (16, 6)
     plotnine.options.dpi = 100
     
+    # Filter the data with rcp and c02_fertilization
     rcp = 'RCP2.6'
     co2 = 'With CO2 Fertilization'
     
@@ -174,14 +177,17 @@ if __name__ == '__main__':
     GAEZ_yb_mean_stats = bincount_with_mask(mask_sum, GAEZ_yb_mean * mask_mean)
     GAEZ_yb_std_stats = bincount_with_mask(mask_sum, GAEZ_yb_std * mask_mean)
     
-    GAEZ_yb_stats = GAEZ_yb_mean_stats.merge(GAEZ_yb_std_stats,
-                                             on = ['bin', 'crop', 'water_supply', 'year', 'rcp', 'c02_fertilization'], 
-                                             suffixes = ('_mean', '_std'))
-    GAEZ_yb_stats = GAEZ_yb_stats.rename(columns = {
-        'bin': 'Province', 
-        'Value_mean': 'Yield_mean (t/ha)', 
-        'Value_std': 'Yield_std (t/ha)'
-        })
+    GAEZ_yb_stats = GAEZ_yb_mean_stats.merge(
+        GAEZ_yb_std_stats,
+        on = ['bin', 'crop', 'water_supply', 'year', 'rcp', 'c02_fertilization'], 
+        suffixes = ('_mean', '_std'))
+    
+    GAEZ_yb_stats = GAEZ_yb_stats.rename(
+        columns = {
+            'bin': 'Province', 
+            'Value_mean': 'Yield_mean (t/ha)', 
+            'Value_std': 'Yield_std (t/ha)'
+            })
     
     GAEZ_yb_stats['Province'] = GAEZ_yb_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
