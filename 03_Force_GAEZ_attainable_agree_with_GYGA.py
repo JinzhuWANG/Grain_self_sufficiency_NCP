@@ -10,7 +10,7 @@ from helper_func.parameters import UNIQUE_VALUES
 
 
 # Read stats
-GYGA_PY = pd.read_csv('data/results/step_3_GYGA_attainable.csv')        # t/ha
+GYGA_PY = pd.read_csv('data/GYGA/GYGA_attainable_fill_nans.csv')        # t/ha
 GYGA_PY['year'] = 2010
 GYGA_PY_2010 = GYGA_PY.groupby(['Province','crop','water_supply']).mean(numeric_only=True).reset_index()
 

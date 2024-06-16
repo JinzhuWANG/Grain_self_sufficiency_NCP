@@ -65,7 +65,7 @@ merged = merged.replace('Rainfed', 'Dryland')
 
 # Save the filled data, multiply the Attanin-Actual ratio (0.8)
 merged['yield_potential_adj'] = merged['yield_potential'] * 0.8
-merged.to_csv('data/results/step_3_GYGA_attainable.csv', index=False)
+merged.to_csv('data/GYGA/GYGA_attainable_fill_nans.csv', index=False)
 
 
 

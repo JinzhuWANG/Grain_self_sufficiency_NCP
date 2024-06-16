@@ -20,7 +20,7 @@ GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(~np.isinf(GAEZ_attain_mean
 
 # Assume the yield will not decrease
 GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(GAEZ_attain_mean_ratio > 1, 1).sel(year=slice(2020, 2101))
-GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(GAEZ_attain_mean_ratio < 3, 3)
+GAEZ_attain_mean_ratio = GAEZ_attain_mean_ratio.where(GAEZ_attain_mean_ratio < 3, 3)    # Any yield increase more than 3 times will be capped at 3
 
 # Load the actual yield data
 GAEZ_actual_yield = xr.open_dataset("data/results/step_4_GAEZ_actual_yield_adj.nc")['data']

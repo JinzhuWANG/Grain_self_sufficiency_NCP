@@ -27,14 +27,16 @@ chunk_size = {
 }
 
 
-# Read data
-yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolated.nc')
 
+# Get masks
 mask_sum = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif')
 mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif')
 mask_province = [xr.where(mask_sum == idx, 1, 0).expand_dims({'Province': [p]}) 
                  for idx,p in enumerate(UNIQUE_VALUES['Province'])]
 mask_province = xr.combine_by_coords(mask_province).astype('float32') 
+
+# Read data
+yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolated.nc')
 
 GAEZ_attainable_yield = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_mean.nc', chunks='auto')['data']/1000     # kg/ha -> t/ha
 GAEZ_attainable_yield = GAEZ_attainable_yield.sel(year=slice(BASE_YR, TARGET_YR + 1))
@@ -96,7 +98,7 @@ for idx, df in Yield_with_Attain.groupby(
         'rcp': idx[2],
         'c02_fertilization': idx[3],
         'year':df.loc[df['diff'].idxmin()]['year']}])
-    min_diff_yr = pd.concat([min_diff_yr,min_yr])
+    min_diff_yr = pd.concat([min_diff_yr, min_yr])
 
 
 # The yearbook trend will stop at the year when the yield touches the attainable ceiling
