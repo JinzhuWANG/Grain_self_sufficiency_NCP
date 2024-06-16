@@ -88,7 +88,7 @@ reclimation_sample_cell.to_netcdf('data/results/step_14_reclimation_area_km2.nc'
 
 
 if __name__ == '__main__':
-    plotnine.options.figure_size = (12, 8)
+    plotnine.options.figure_size = (6, 5)
     plotnine.options.dpi = 100
 
     reclimation_mean = reclimation_sample_cell.mean(dim='sample')
