@@ -34,6 +34,8 @@ if __name__ == '__main__':
          + plotnine.theme_bw()
         )
     
+    g.save('data/results/fig_step_11_urban_area_prediction_with_Gao_SSP.svg')
+    
 
 
 

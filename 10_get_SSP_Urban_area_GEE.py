@@ -108,4 +108,6 @@ if __name__ == "__main__":
          plotnine.theme_bw()  
          )
     
+    g.save('data/results/fig_step_10_urban_area_prediction_under_different_SSP.svg')
+    
 

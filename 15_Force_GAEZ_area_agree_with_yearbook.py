@@ -81,7 +81,10 @@ if __name__ == '__main__':
             plotnine.theme_bw()
             )
     
+    g.save('data/results/fig_step_16_GAEZ_actual_area_agree_with_yearbook_km2.svg')
     
+    
+
 
 
 

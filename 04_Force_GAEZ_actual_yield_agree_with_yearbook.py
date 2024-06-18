@@ -89,6 +89,8 @@ if __name__ == '__main__':
             plotnine.facet_wrap('~Province') +
             plotnine.theme_bw()
             )
+    
+    g.save('data/results/fig_step_4_GAEZ_actual_yield_agree_with_yearbook_kg_ha.svg')
 
 
 

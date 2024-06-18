@@ -68,10 +68,6 @@ urban_area_potential = urban_area_potential[['Province', 'Potential', 'Area_cums
 area_hist_df.to_csv('data/results/step_8_area_hist_df.csv', index=False)
 urban_area_potential.to_csv('data/results/step_8_urban_area_potential.csv', index=False)
 
-# Read the data
-urban_area_hist = pd.read_csv('data/results/step_8_area_hist_df.csv')
-urban_area_potential = pd.read_csv('data/results/step_8_urban_area_potential.csv')
-
 
 
 # Sanity check
@@ -86,6 +82,8 @@ if __name__ == '__main__':
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
         )
     
+    g.save('data/results/fig_step_8_1_urban_area_prediction_cumsum_km2.svg')
+    
     g = (plotnine.ggplot(urban_area_potential.query('Potential > 9900')) +
         plotnine.aes(x='Potential', y='Area_cumsum_km2', color='Province') +
         plotnine.geom_line() +
@@ -93,5 +91,7 @@ if __name__ == '__main__':
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1)) +
         plotnine.scale_x_reverse()
         )
+    
+    g.save('data/results/fig_step_8_2_urban_area_prediction_under_different_transition_potential.svg')
 
 

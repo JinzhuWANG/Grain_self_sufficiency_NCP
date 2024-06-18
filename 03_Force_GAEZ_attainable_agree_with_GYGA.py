@@ -122,3 +122,4 @@ if __name__ == '__main__':
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
     )
     
+    g.save('data/results/fig_step_3_GAEZ_agree_with_GYGA_kg_ha.svg')

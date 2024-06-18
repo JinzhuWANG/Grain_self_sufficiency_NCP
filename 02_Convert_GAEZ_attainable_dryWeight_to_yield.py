@@ -91,5 +91,7 @@ if __name__ == '__main__':
         plotnine.facet_grid('crop~bin', scales='free_y') +
         plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
     )
+    
+    g.save('data/results/fig_step_2_GAEZ_attainaiable_VS_yearbook_kg_ha.svg')
 
 

@@ -24,4 +24,12 @@ def get_yearbook_area():
     # Concatenate the data, and convert ha to kha
     yearbook_area = pd.concat([wheat_area_history, rice_area_history, maize_area_history], axis=0)
     yearbook_area = yearbook_area.rename(columns={'Value':'area_yearbook_kha'})
+    
+    # Calculate the ratio of the area to the total area
+    yearbook_area = yearbook_area.sort_values(['Province','year', 'crop'])
+    yearbook_area['area_ratio'] = yearbook_area\
+        .groupby(['Province','year'])['area_yearbook_kha']\
+        .transform(lambda x: x / x.sum())
+
+    
     return yearbook_area

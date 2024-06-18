@@ -78,6 +78,7 @@ if __name__ == '__main__':
         plotnine.theme_bw() 
         )
 
+    g.save('data/results/fig_step_5_GAEZ_actual_yield_extrapolate_by_attainable_multiplier_kg_ha.svg')
 
 
 

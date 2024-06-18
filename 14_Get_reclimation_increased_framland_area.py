@@ -88,7 +88,7 @@ reclimation_sample_cell.to_netcdf('data/results/step_14_reclimation_area_km2.nc'
 
 
 if __name__ == '__main__':
-    plotnine.options.figure_size = (6, 5)
+    plotnine.options.figure_size = (6, 4)
     plotnine.options.dpi = 100
 
     reclimation_mean = reclimation_sample_cell.mean(dim='sample')
@@ -115,7 +115,8 @@ if __name__ == '__main__':
          plotnine.geom_line(plotnine.aes(x='year', y='mean', color='Province')) +
          plotnine.geom_ribbon(plotnine.aes(x='year', ymin='lower', ymax='upper', fill='Province'), alpha=0.5) +
          plotnine.theme_bw() +
-         plotnine.theme(legend_position='none') +
          plotnine.labs(x='Year', y='Reclimation Area (km2)'))
+    
+    g.save('data/results/fig_step_14_cropland_reclimation_prediction_cumsum_km2.svg')
 
     

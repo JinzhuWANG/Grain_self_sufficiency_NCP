@@ -121,6 +121,8 @@ if __name__ == '__main__':
         plotnine.theme_bw()
     )
     
+    g.save('data/results/fig_step_13_spliting_threshould_for_transition_potentials_in_predicting_urban_map.svg')
+    
     
     
     

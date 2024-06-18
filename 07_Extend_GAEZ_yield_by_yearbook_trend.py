@@ -204,4 +204,6 @@ if __name__ == '__main__':
          plotnine.facet_grid('crop~Province') +
          plotnine.theme_bw()
         )
+    
+    g.save('data/results/fig_step_7_GAEZ_yield_extrapolate_by_GAEZ-attnainable_and_yearbook.svg')
 
