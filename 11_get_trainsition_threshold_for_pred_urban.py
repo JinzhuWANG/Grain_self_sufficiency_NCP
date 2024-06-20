@@ -29,6 +29,7 @@ if __name__ == '__main__':
     plotnine.options.dpi = 100
 
     g = (plotnine.ggplot()
+         + plotnine.geom_point(urban_area_hist, plotnine.aes(x='year', y='Area_cumsum_km2'), color='grey', size=0.05)
          + plotnine.geom_line(potential_threshold, plotnine.aes(x='year', y='Area_cumsum_km2', color='ssp'), size=0.2)
          + plotnine.facet_wrap('~Province')
          + plotnine.theme_bw()

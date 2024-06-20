@@ -1,4 +1,5 @@
 import math
+from re import S
 import numpy as np
 import pandas as pd
 import rioxarray as rxr
@@ -8,7 +9,7 @@ import plotnine
 
 from helper_func import read_yearbook, sample_ppf
 from helper_func.calculate_GAEZ_stats import bincount_with_mask
-from helper_func.parameters import BASE_YR, UNIQUE_VALUES, Monte_Carlo_num
+from helper_func.parameters import BASE_YR, PRED_STEP, UNIQUE_VALUES, Monte_Carlo_num
 
 
 # Read data
@@ -21,9 +22,9 @@ mask_mean = rxr.open_rasterio('data/GAEZ_v4/Province_mask_mean.tif', chunks='aut
 mask_mean_province = mask_province * mask_mean
 
 
-reclimation = read_yearbook('data/Yearbook/yearbook_land_reclimation_total_area_ha.csv', 'Reclimation')     # ha
+reclimation = read_yearbook('data/Yearbook/yearbook_land_reclimation_cropland_increase_ha.csv', 'Reclimation')     # ha
 reclimation = reclimation.sort_values(['Province','year']).reset_index(drop=True)
-reclimation['Cumsum Area (km2)'] = reclimation.groupby('Province')['Value'].cumsum()/1e4                    # km2
+reclimation['Cumsum Area (km2)'] = reclimation.groupby('Province')['Value'].cumsum()/1e2                    # ha -> km2
 
 
 # Build model for each province
@@ -36,7 +37,7 @@ for idx, df in reclimation.groupby('Province'):
     model = sm.OLS(y, X).fit()
     
     # Predict
-    pred_df = pd.DataFrame({'year':range(BASE_YR,2101)})
+    pred_df = pd.DataFrame({'year':range(BASE_YR, 2101, PRED_STEP)})
     pred_df = sm.add_constant(pred_df)
 
     inf_df = model.get_prediction(pred_df).summary_frame(alpha=0.32) # 0.68 CI indicates the mean+/-std
@@ -88,8 +89,8 @@ reclimation_sample_cell.to_netcdf('data/results/step_14_reclimation_area_km2.nc'
 
 
 if __name__ == '__main__':
-    plotnine.options.figure_size = (6, 4)
-    plotnine.options.dpi = 100
+    plotnine.options.figure_size = (10, 6)
+    plotnine.options.dpi = 200
 
     reclimation_mean = reclimation_sample_cell.mean(dim='sample')
     reclimation_std = reclimation_sample_cell.std(dim='sample')
@@ -111,10 +112,18 @@ if __name__ == '__main__':
     reclimation_stats['lower'] = reclimation_stats['mean'] - (reclimation_stats['std'] / math.sqrt(Monte_Carlo_num) * 1.96)
     reclimation_stats['upper'] = reclimation_stats['mean'] + (reclimation_stats['std'] / math.sqrt(Monte_Carlo_num) * 1.96)
     
-    g = (plotnine.ggplot(reclimation_stats) +
-         plotnine.geom_line(plotnine.aes(x='year', y='mean', color='Province')) +
-         plotnine.geom_ribbon(plotnine.aes(x='year', ymin='lower', ymax='upper', fill='Province'), alpha=0.5) +
+    g = (plotnine.ggplot() +
+         plotnine.geom_point(
+             reclimation, 
+             plotnine.aes(x='year', y='Cumsum Area (km2)'), color='grey', size=0.03) +
+         plotnine.geom_line(
+             reclimation_stats, 
+             plotnine.aes(x='year', y='mean', color='Province')) +
+         plotnine.geom_ribbon(
+             reclimation_stats,
+             plotnine.aes(x='year', ymin='lower', ymax='upper', fill='Province'), alpha=0.5) +
          plotnine.theme_bw() +
+         plotnine.facet_wrap('~Province', scales='free_y') +
          plotnine.labs(x='Year', y='Reclimation Area (km2)'))
     
     g.save('data/results/fig_step_14_cropland_reclimation_prediction_cumsum_km2.svg')

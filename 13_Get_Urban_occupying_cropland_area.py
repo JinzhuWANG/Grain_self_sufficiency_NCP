@@ -106,22 +106,22 @@ if __name__ == '__main__':
     urban_occupy_cropland = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data']
     mask_province = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif', chunks='auto')
     
-    urban_eccopu_stats = bincount_with_mask(mask_province.astype('int8'), urban_occupy_cropland)
-    urban_eccopu_stats = urban_eccopu_stats.rename(columns={'bin': 'Province', 'Value': 'Farmland loss (km2)'})
-    urban_eccopu_stats['Province'] = urban_eccopu_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
+    urban_occupy_stats = bincount_with_mask(mask_province.astype('int8'), urban_occupy_cropland)
+    urban_occupy_stats = urban_occupy_stats.rename(columns={'bin': 'Province', 'Value': 'Farmland loss (km2)'})
+    urban_occupy_stats['Province'] = urban_occupy_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     
     plotnine.options.figure_size = (10, 6)
     plotnine.options.dpi = 100
     
     g = (
         plotnine.ggplot() +
-        plotnine.geom_line(urban_eccopu_stats, 
+        plotnine.geom_line(urban_occupy_stats, 
                            plotnine.aes(x='year', y='Farmland loss (km2)', color='ssp')) +
         plotnine.facet_wrap('~Province', scales='free_y') +
         plotnine.theme_bw()
     )
     
-    g.save('data/results/fig_step_13_spliting_threshould_for_transition_potentials_in_predicting_urban_map.svg')
+    g.save('data/results/fig_step_13_cropland_loss_from_urban_occupation_km2.svg')
     
     
     
