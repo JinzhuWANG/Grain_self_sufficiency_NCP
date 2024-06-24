@@ -1,3 +1,4 @@
+import re
 import pandas as pd
 from helper_func import read_yearbook
 
@@ -31,5 +32,20 @@ def get_yearbook_area():
         .groupby(['Province','year'])['area_yearbook_kha']\
         .transform(lambda x: x / x.sum())
 
-    
     return yearbook_area
+
+
+def get_yearbook_production():
+    # Read the yearbook data
+    wheat_production = read_yearbook('data/Yearbook/production_wheat.csv','Wheat')
+    maize_productoin = read_yearbook('data/Yearbook/production_maize.csv','Maize')
+    rice_production = read_yearbook('data/Yearbook/production_rice.csv','Wetland rice') 
+    
+    # Concatenate the data, and convert tonnes to million tonnes
+    yearbook_production = pd.concat([wheat_production, maize_productoin, rice_production], axis=0)
+    yearbook_production['Production (Mt)'] = yearbook_production['Value'] / 100
+    
+    return yearbook_production
+    
+    
+    

@@ -54,8 +54,8 @@ prediction_df = prediction_df.sort_values(['Province','year'])
 
 # Subtract values for BASE_YR to align with the beginning of the modeling period
 prediction_df['mean km2'] = prediction_df.groupby('Province').transform(lambda x: x - x.iloc[0])['mean km2']
-prediction_df['std km2'] = np.min(prediction_df[['std km2','mean km2']].values + 1e-5, axis=1)     # Std must > mean to avoide negative values
-
+prediction_df['std km2'] = np.min(prediction_df[['std km2','mean km2']].values + 1e-5, axis=1)     # Std must > mean to avoide negative yields
+prediction_df['se'] = prediction_df['std km2'] / math.sqrt(Monte_Carlo_num)
 
 # Sample from mean and std of reclimation area for each province
 reclimation_sample = sample_ppf(
@@ -109,8 +109,9 @@ if __name__ == '__main__':
         idx:p for idx,p in enumerate(UNIQUE_VALUES['Province'])
         })
     
-    reclimation_stats['lower'] = reclimation_stats['mean'] - (reclimation_stats['std'] / math.sqrt(Monte_Carlo_num) * 1.96)
-    reclimation_stats['upper'] = reclimation_stats['mean'] + (reclimation_stats['std'] / math.sqrt(Monte_Carlo_num) * 1.96)
+    reclimation_stats['se'] = reclimation_stats['std'] / math.sqrt(Monte_Carlo_num) 
+    reclimation_stats['lower'] = reclimation_stats['mean'] - reclimation_stats['se'] * 1.96
+    reclimation_stats['upper'] = reclimation_stats['mean'] + reclimation_stats['se'] * 1.96
     
     g = (plotnine.ggplot() +
          plotnine.geom_point(

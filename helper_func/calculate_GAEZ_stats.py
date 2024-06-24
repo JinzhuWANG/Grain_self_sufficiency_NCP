@@ -51,27 +51,29 @@ def get_GEAZ_layers(GAEZ_df: pd.DataFrame):
 
 
 
-def bincount_with_mask(mask, xr_arr):
+def bincount_with_mask(mask, xr_arr, mask_core_dims=['y', 'x'], array_core_dims=['y', 'x']):
     """
-    Calculate statistics using weighted bincount with a mask.
+    Calculate weighted bincount statistics based on a mask and an input array.
 
     Parameters:
-    - mask (xarray.DataArray): The mask array.
-    - xr_arr (xarray.DataArray): The input array.
+    - mask (xarray.DataArray): The mask array used for binning.
+    - xr_arr (xarray.DataArray): The input array to calculate statistics on.
+    - mask_core_dims (list): The core dimensions of the mask array.
+    - array_core_dims (list): The core dimensions of the input array.
 
     Returns:
-    - stats (pandas.DataFrame): The calculated statistics.
-
+    - stats (pandas.DataFrame): The calculated bincount statistics as a DataFrame.
     """
+
     stats = xr.apply_ufunc(
         weighted_bincount,
         mask,
         xr_arr,
-        input_core_dims=[['y', 'x'], ['y', 'x']],
+        input_core_dims=[mask_core_dims, array_core_dims],
         output_core_dims=[['bin']],
         vectorize=True,
         dask='parallelized',
-        kwargs={'minlength': int(mask_sum.max().values) + 1},
+        kwargs={'minlength': int(mask.max().values) + 1},
         output_dtypes=[float],
         dask_gufunc_kwargs={'output_sizes': {'bin': int(mask.max().values) + 1},
                             'allow_rechunk':True}

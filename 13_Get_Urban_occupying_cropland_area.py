@@ -33,7 +33,7 @@ from helper_func.parameters import UNIQUE_VALUES
 
 
 # Read data
-GAEZ_mask = xr.open_dataset('data/GAEZ_v4/GAEZ_mask.tif')
+GAEZ_mask = xr.open_dataset('data/GAEZ_v4/GAEZ_mask.tif', chunks='auto')
 urban_cells = xr.open_dataset('data/results/step_12_urban_potential_arr_reclass.nc', chunks='auto')['data']
 lucc_area = xr.open_dataset('data/LUCC/LUCC_Area_km2.nc', chunks='auto')['data']
 
@@ -41,7 +41,7 @@ cropland_cells = xr.open_dataset('data/LUCC/Norm_CLCD_v01_2019.nc', chunks='auto
 cropland_cells = xr.where(cropland_cells == 1, 1, 0)     # Pixels of cropland are 1, all others are 0
 
 
-urban_occupy_cropland = xr.where(urban_cells & cropland_cells, 1, 0)
+urban_occupy_cropland = xr.where(urban_cells & cropland_cells, 1, 0) 
 urban_occupy_cropland = (urban_occupy_cropland * lucc_area).astype('float32')
 urban_occupy_cropland = urban_occupy_cropland.rio.write_crs(GAEZ_mask.rio.crs)
 
@@ -93,6 +93,8 @@ urban_occupy_cropland.name = 'data'
 # Subtract the cropland loss for 2020 to align with the model baseline
 urban_occupy_cropland = urban_occupy_cropland - urban_occupy_cropland.sel(year=2020)
 
+# Apply mask of the research region
+urban_occupy_cropland = urban_occupy_cropland * GAEZ_mask['band_data']
 
 # Save the results
 encoding = {'data': {'dtype': 'float32', 'zlib': True, 'complevel': 9}}
@@ -104,6 +106,7 @@ if __name__ == '__main__':
     
     # Read data
     urban_occupy_cropland = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data']
+    urban_occupy_cropland = urban_occupy_cropland * GAEZ_mask['band_data']
     mask_province = rxr.open_rasterio('data/GAEZ_v4/Province_mask.tif', chunks='auto')
     
     urban_occupy_stats = bincount_with_mask(mask_province.astype('int8'), urban_occupy_cropland)
