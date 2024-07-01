@@ -61,7 +61,7 @@ def read_yearbook(path:str, record_name:str=None, city_cn_en:dict=Province_names
 
 
 
-def read_ssp(data_path:str='data/SSP_China_data'):
+def read_ssp_China(data_path:str='data/SSP_China_data'):
     SSP_GDP = pd.read_csv(f'{data_path}/SSP_GDP_ppp.csv')
     SSP_Pop = pd.read_csv(f'{data_path}/SSP_Population.csv')
 
@@ -84,6 +84,21 @@ def read_ssp(data_path:str='data/SSP_China_data'):
     SSP_Pop_long['year'] = SSP_Pop_long['year'].astype('int16')
     
     return SSP_GDP_long, SSP_Pop_long
+
+def read_ssp_NCP():
+    GDP_NCP_dfs = []
+    POP_NCP_dfs = []
+    for i in range(1,6):
+        ncp_gdp = read_yearbook(f"data/SSP_China_data/SSPs_GDP_Prov_v2_SSP{i}.csv", 'GDP')                              # unit: 10k CNY
+        ncp_pop = read_yearbook(f"data/SSP_China_data/SSPs_POP_Prov_v2_SSP{i}.csv", 'population')                       # unit: 1 person
+        ncp_pop['Value'] = ncp_pop['Value']/1e4                                                                         # unit: 10k person
+        ncp_gdp['SSP'] = ncp_pop['SSP'] = f'SSP{i}'
+        GDP_NCP_dfs.append(ncp_gdp)
+        POP_NCP_dfs.append(ncp_pop)
+        
+    GDP_NCP_pred = pd.concat(GDP_NCP_dfs).reset_index()                                                                # unit: 10k CNY
+    POP_NCP_pred = pd.concat(POP_NCP_dfs).reset_index()   
+    return GDP_NCP_pred, POP_NCP_pred  
 
 
 

@@ -2,49 +2,20 @@ import pandas as pd
 import plotnine
 import statsmodels.api as sm
 
-from helper_func import read_ssp, read_yearbook
+from helper_func import  read_ssp_China, read_ssp_NCP, read_yearbook
+from helper_func.get_yearbook_records import get_China_GDP, get_China_population
 
 
 
-# Read historical data of China 
-GDP_China = pd.read_csv('data/Yearbook/yearbook_GDP_China.csv').T.drop('地区')                                      # unit: 10k CNY
-GDP_China = GDP_China.sum(axis=1).reset_index().rename(columns={'index':'year', 0:'GDP'})
-GDP_China['year'] = GDP_China['year'].astype('int16')
-GDP_China['GDP'] = GDP_China['GDP'].astype('float64')
+# Read historical data
+GDP_China = get_China_GDP()
+Population_China = get_China_population()
+GDP_NCP = read_yearbook('data/Yearbook/yearbook_GDP_China.csv','GDP')                       # unit: 10k CNY
+POP_NCP = read_yearbook('data/Yearbook/yearbook_population_China.csv','population')         # unit: 10k person
 
-
-Population_China = pd.read_excel('data/Yearbook/China_population_1980_2022.xlsx', sheet_name='统计数据')             # unit: 10k person
-Population_China = Population_China[Population_China["地区名称"] != '中国']
-Population_China = Population_China.groupby(['统计年度'])[['总人口数/万人']].sum().reset_index()
-Population_China.columns = ['year','Population']
-Population_China['Population'] = Population_China['Population'].astype('float64')
-Population_China['Population'] = Population_China['Population']/1e2                                                 # unit: million person
-
-
-# Read SSP data of China
-SSP_GDP_China, SSP_Pop_China = read_ssp(data_path='data/SSP_China_data')                                            # unit: (PPP) billion US$2005/yr | million person
-
-
-
-# Read historical data of the North China Plain
-GDP_NCP = read_yearbook('data/Yearbook/yearbook_GDP_China.csv','GDP')                                               # unit: 10k CNY
-POP_NCP = read_yearbook('data/Yearbook/yearbook_population_China.csv','population')                                 # unit: 10k person
-
-
-
-# Read projected SSP data of the North China Plain
-GDP_NCP_dfs = []
-POP_NCP_dfs = []
-for i in range(1,6):
-    ncp_gdp = read_yearbook(f"data/SSP_China_data/SSPs_GDP_Prov_v2_SSP{i}.csv", 'GDP')                              # unit: 10k CNY
-    ncp_pop = read_yearbook(f"data/SSP_China_data/SSPs_POP_Prov_v2_SSP{i}.csv", 'population')                       # unit: 1 person
-    ncp_pop['Value'] = ncp_pop['Value']/1e4                                                                         # unit: 10k person
-    ncp_gdp['SSP'] = ncp_pop['SSP'] = f'SSP{i}'
-    GDP_NCP_dfs.append(ncp_gdp)
-    POP_NCP_dfs.append(ncp_pop)
-    
-GDP_NCP_pred = pd.concat(GDP_NCP_dfs).reset_index()                                                                # unit: 10k CNY
-POP_NCP_pred = pd.concat(POP_NCP_dfs).reset_index()                                                                # unit: 10k person
+# Read prediction data under SSPs
+SSP_GDP_China, SSP_Pop_China = read_ssp_China(data_path='data/SSP_China_data')              # unit: (PPP) billion US$2005/yr | million person
+GDP_NCP_pred, POP_NCP_pred = read_ssp_NCP()    
 
 
 

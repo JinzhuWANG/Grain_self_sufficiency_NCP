@@ -46,6 +46,24 @@ def get_yearbook_production():
     yearbook_production['Production (Mt)'] = yearbook_production['Value'] / 100
     
     return yearbook_production
-    
-    
-    
+
+
+def get_China_GDP():
+    GDP_China = pd.read_csv('data/Yearbook/yearbook_GDP_China.csv').T.drop('地区')                                      # unit: 10k CNY
+    GDP_China = GDP_China.sum(axis=1).reset_index().rename(columns={'index':'year', 0:'GDP'})
+    GDP_China['year'] = GDP_China['year'].astype('int16')
+    GDP_China['GDP'] = GDP_China['GDP'].astype('float64')   
+    return GDP_China
+
+def get_China_population():
+    Population_China = pd.read_excel('data/Yearbook/China_population_1980_2022.xlsx', sheet_name='统计数据')             # unit: 10k person
+    Population_China = Population_China[Population_China["地区名称"] != '中国']
+    Population_China = Population_China.groupby(['统计年度'])[['总人口数/万人']].sum().reset_index()
+    Population_China.columns = ['year','Population']
+    Population_China['Population'] = Population_China['Population'].astype('float64')
+    Population_China['Population'] = Population_China['Population']/1e2                                                 # unit: million person
+    return Population_China
+
+def get_NCP_urban_population_ratio():
+    urban_pop_ratio = read_yearbook('data/Yearbook/Urban_population_rate.csv')  # unit: %
+    return urban_pop_ratio[['Province', 'year', 'Value']].rename(columns={'Value':'urban_pop_ratio'})
