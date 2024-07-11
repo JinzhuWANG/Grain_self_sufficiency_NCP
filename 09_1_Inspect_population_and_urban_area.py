@@ -1,3 +1,4 @@
+from matplotlib import scale
 import pandas as pd
 import plotnine
 
@@ -17,7 +18,7 @@ def extapolate_area(df):
 # Read the historical cumulative urban area
 population_hist = read_yearbook('data/Yearbook/yearbook_population_China.csv','population')         # unit: 10k person
 population_hist['Population (million)'] = population_hist['Value'] / 100
-population_hist = population_hist.query('year >= 1990')
+population_hist = population_hist.query('year >= 2011')
 
 population_ssp = pd.read_csv('data/results/POP_NCP_pred.csv')
 population_ssp['Population (million)'] = population_ssp['Value'] / 100
@@ -48,18 +49,11 @@ total_pop_and_urban_ratio = total_pop_and_urban_ratio.sort_values(
     by=['Province', 'year']
 ).reindex()
 
-total_pop_and_urban_ratio['pop_mornal'] = total_pop_and_urban_ratio\
-    .groupby('Province')['Population (million)']\
-    .transform(lambda x: (x - x.mean()) / x.std())
-    
-total_pop_and_urban_ratio['ratio_mornal'] = total_pop_and_urban_ratio\
-    .groupby('Province')['urban_pop_ratio']\
-    .transform(lambda x: (x - x.mean()) / x.std())
 
 
 # Save the results
-urban_area_hist_ext.to_csv('data/results/step_9_1_urban_area_ext.csv', index=False)
-total_pop_and_urban_ratio.to_csv('data/results/step_9_2_total_pop_and_urban_ratio.csv', index=False)
+urban_area_hist_ext.to_csv('data/results/step_9_1_1_urban_area_ext.csv', index=False)
+total_pop_and_urban_ratio.to_csv('data/results/step_9_1_2_total_pop_and_urban_ratio.csv', index=False)
 
 
 if __name__ == '__main__':
@@ -78,7 +72,7 @@ if __name__ == '__main__':
             plotnine.facet_wrap('~Province') +
             plotnine.theme_bw() 
             )
-    g.save('data/results/fig_step_9_0_population.svg')
+    g.save('data/results/fig_step_9_1_1_total_population_hist_and_future.svg')
     
     # Plot the extrapolated urban area
     g = (plotnine.ggplot() +
@@ -91,7 +85,7 @@ if __name__ == '__main__':
         plotnine.theme_bw() 
         )
     
-    g.save('data/results/fig_step_9_1_historic_urban_area.svg')
+    g.save('data/results/fig_step_9_1_2_historic_urban_area_km2.svg')
     
     # Plot the urban population ratio
     g = (plotnine.ggplot() +
@@ -100,21 +94,18 @@ if __name__ == '__main__':
              plotnine.aes(x='year', y='urban_pop_ratio', color='Province')) +
         plotnine.theme_bw() 
         )
-    g.save('data/results/fig_step_9_2_urban_population_ratio.svg')
+    g.save('data/results/fig_step_9_1_3_urban_population_ratio.svg')
     
     # Plot the population v.s. urban-population ratio
     g = (plotnine.ggplot() +
         plotnine.geom_point(
             total_pop_and_urban_ratio, 
             plotnine.aes(
-                x='pop_mornal', 
-                y='ratio_mornal', 
+                x='Population (million)', 
+                y='urban_pop_ratio', 
                 color='Province')) +
-        plotnine.geom_abline(
-            plotnine.aes(intercept=0, slope=1), 
-            linetype='dashed',
-            color='grey') +
-        plotnine.theme_bw() 
+        plotnine.theme_bw() +
+        plotnine.facet_wrap('~Province', scales='free')
         )
     
-    g.save('data/results/fig_step_9_3_population_v.s._urban_population_ratio.svg')
+    g.save('data/results/fig_step_9_1_4_total_population_v.s._urban_population_ratio.svg')
