@@ -8,14 +8,14 @@ from sklearn.preprocessing import StandardScaler
 from helper_func.parameters import UNIQUE_VALUES
 
 
-# Define the celling of the urban population ratio (%)
+# Define the ceiling of the urban population ratio (%)
 cellings = {
-    'Anhui': 70,
+    'Anhui': 75,
     'Beijing': 90,
-    'Hebei': 70,
-    'Henan': 70,
+    'Hebei': 75,
+    'Henan': 75,
     'Jiangsu': 80,
-    'Shandong': 70,
+    'Shandong': 75,
     'Tianjin': 85,
 }
 
@@ -96,6 +96,7 @@ future_data = pd.DataFrame({
     'Province': np.repeat(UNIQUE_VALUES['Province'], len(future_years)),
     'Province_idx': np.repeat(province_indices, len(future_years))
 })
+
 future_data['year_normalized'] = future_data\
     .groupby('Province')['year']\
     .transform(lambda x: scalers_yr[x.name].transform(x.values.reshape(-1, 1)).flatten())

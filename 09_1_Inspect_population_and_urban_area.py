@@ -18,7 +18,7 @@ def extapolate_area(df):
 # Read the historical cumulative urban area
 population_hist = read_yearbook('data/Yearbook/yearbook_population_China.csv','population')         # unit: 10k person
 population_hist['Population (million)'] = population_hist['Value'] / 100
-population_hist = population_hist.query('year >= 2011')
+population_hist = population_hist.query('year >= 1990')
 
 population_ssp = pd.read_csv('data/results/POP_NCP_pred.csv')
 population_ssp['Population (million)'] = population_ssp['Value'] / 100
@@ -66,10 +66,19 @@ if __name__ == '__main__':
             plotnine.geom_point(
                 population_hist, 
                 plotnine.aes(x='year', y='Population (million)'), color='grey', size=0.03) +
-            plotnine.geom_line(
-                population_ssp, 
-                plotnine.aes(x='year', y='Population (million)', color='SSP')) +
-            plotnine.facet_wrap('~Province') +
+            plotnine.facet_wrap('~Province', scales='free') +
+            plotnine.theme_bw() 
+            )
+    g.save('data/results/fig_step_9_1_0_total_population_hist.svg')
+    
+    g = (plotnine.ggplot() +
+            plotnine.geom_point(
+                population_hist, 
+                plotnine.aes(x='year', y='Population (million)'), color='grey', size=0.03) +
+            # plotnine.geom_line(
+            #     population_ssp, 
+            #     plotnine.aes(x='year', y='Population (million)', color='SSP')) +
+            plotnine.facet_wrap('~Province', scales='free') +
             plotnine.theme_bw() 
             )
     g.save('data/results/fig_step_9_1_1_total_population_hist_and_future.svg')
