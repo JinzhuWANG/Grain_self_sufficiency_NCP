@@ -143,6 +143,8 @@ with linear_model:
     # Posterior predictive
     linear_ppc = pm.sample_posterior_predictive(linear_trace)
     
+    
+    
 # Extract the predicted urban population ratio
 ppc_df = linear_ppc['posterior_predictive']
 ppc_df['SSP'] = (('obs'), future_data['SSP'])
@@ -173,6 +175,8 @@ ppc_df_stats_adj[subtract_cols] = ppc_df_stats_adj\
     .groupby('Province')[subtract_cols + ['Province']]\
     .apply(lambda x: x[subtract_cols] + diff[x['Province'].values[0]]).reset_index(drop=True)
 
+ppc_df_stats_adj.to_csv('data/results/step_9_3_1_predict_urban_area_adj.csv', index=False)
+
 
 
 # Stop urban area from decreasing
@@ -186,7 +190,7 @@ for idx,df in ppc_df_stats_adj.groupby( ['Province','SSP']):
     
     ppc_df_stats_adj_no_decrease = pd.concat([ppc_df_stats_adj_no_decrease, df])
 
-
+ppc_df_stats_adj_no_decrease.to_csv('data/results/step_9_3_2_predict_urban_area_adj_no_decrease.csv', index=False)
 
 
 

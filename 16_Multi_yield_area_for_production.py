@@ -1,4 +1,3 @@
-from calendar import c
 import math
 import xarray as xr
 import rioxarray as rxr
@@ -47,7 +46,7 @@ production_mean_stats = production_mean_stats.rename(
 production_mean_stats['Province'] = production_mean_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 
 production_pred_start = production_mean_stats\
-    .query('year == 2020 & rcp=="RCP2.6" & ssp =="SSP2" & c02_fertilization=="With CO2 Fertilization"').copy()
+    .query('year == 2020 & rcp=="RCP2.6" & SSP =="SSP2" & c02_fertilization=="With CO2 Fertilization"').copy()
 production_pred_start = production_pred_start\
     .groupby(['Province','crop'])\
     .sum(numeric_only=True).reset_index()
@@ -71,6 +70,10 @@ GAEZ_yr_production_xr = GAEZ_yr_production_xr.sum(dim=['Province'])
 # Forcing the production in the starting year to be the same as the yearbook
 production_pred_mean_adj = production_pred * GAEZ_yr_production_xr
 
+production_pred_mean_adj.name = 'data'
+encoding = {'data': {'dtype': 'float32', 'zlib': True, 'complevel': 9}}
+production_pred_mean_adj.to_netcdf('data/results/step_16_production_pred_adj.nc', encoding=encoding)
+
 
 
 
@@ -92,11 +95,11 @@ if __name__ == '__main__':
     production_stats = pd.merge(
         production_mean_stats, 
         production_std_stats, 
-        on = [ 'rcp', 'ssp', 'year', 'bin', 'crop', 'water_supply', 'c02_fertilization'], 
+        on = [ 'rcp', 'SSP', 'year', 'bin', 'crop', 'water_supply', 'c02_fertilization'], 
         suffixes = ('_mean', '_std'))
     production_stats = production_stats.rename(
         columns = {'Value_mean': 'Production (Mt)', 'Value_std': 'Production_std (Mt)', 'bin': 'Province'})
-    production_stats = production_stats.groupby(['rcp', 'ssp', 'year', 'Province', 'crop', 'c02_fertilization']).sum().reset_index()
+    production_stats = production_stats.groupby(['rcp', 'SSP', 'year', 'Province', 'crop', 'c02_fertilization']).sum().reset_index()
     
     production_stats['Province'] = production_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
     production_stats['se'] = production_stats['Production_std (Mt)'] / math.sqrt(Monte_Carlo_num)
@@ -109,7 +112,7 @@ if __name__ == '__main__':
 
     plot_df = production_stats.query(
         f'rcp == "{rcp}"  & c02_fertilization == "{co2}"').copy()
-    plot_df_sum = plot_df.groupby(['year','ssp']).sum(numeric_only=True).reset_index()
+    plot_df_sum = plot_df.groupby(['year','SSP']).sum(numeric_only=True).reset_index()
     
    
     g = (
@@ -119,10 +122,10 @@ if __name__ == '__main__':
             plotnine.aes(x='year', y='Production (Mt)'), color='grey', size=0.5) +
         plotnine.geom_line(
             plot_df_sum, 
-            plotnine.aes(x='year', y='Production (Mt)', color='ssp')) +
+            plotnine.aes(x='year', y='Production (Mt)', color='SSP')) +
         plotnine.geom_ribbon(
             plot_df_sum, 
-            plotnine.aes(x='year', ymin='lower', ymax='upper', fill='ssp'), alpha=0.3) +
+            plotnine.aes(x='year', ymin='lower', ymax='upper', fill='SSP'), alpha=0.3) +
         plotnine.theme_bw()
     )
 
