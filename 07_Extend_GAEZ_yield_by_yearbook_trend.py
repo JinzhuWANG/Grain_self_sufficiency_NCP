@@ -14,7 +14,7 @@ from helper_func.parameters import (BASE_YR,
 
 
 
-# Define parameters
+# Define chunk size
 chunk_size = {
     'crop': 3,
     'water_supply': 2,
@@ -41,10 +41,10 @@ yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolate
 GAEZ_attainable_yield = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_mean.nc', chunks='auto')['data']/1000     # kg/ha -> t/ha
 GAEZ_attainable_yield = GAEZ_attainable_yield.sel(year=slice(BASE_YR, TARGET_YR + 1))
 
-GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')                       # t/ha
+GAEZ_yield_mean = xr.open_dataset('data/results/step_5_GAEZ_actual_yield_extended.nc')                              # t/ha
 GAEZ_yield_mean = GAEZ_yield_mean['data'].sel(year=slice(BASE_YR, TARGET_YR + 1)).astype('float32').chunk(chunk_size)
 
-GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc') / 1000                           # kg/ha -> t/ha
+GAEZ_yield_std = xr.open_dataset('data/results/step_3_GAEZ_AY_GYGA_std.nc') / 1000                                  # kg/ha -> t/ha
 GAEZ_yield_std = GAEZ_yield_std['data'].sel(year=slice(BASE_YR, TARGET_YR + 1))
 GAEZ_yield_std = GAEZ_yield_std.transpose(*GAEZ_yield_mean.dims).astype('float32')
 GAEZ_yield_std = GAEZ_yield_std.where(GAEZ_yield_std > 0, 1e-3).chunk(chunk_size)
@@ -90,8 +90,7 @@ Yield_with_Attain = Yield_MC_stats.merge(
 Yield_with_Attain['diff'] = abs(Yield_with_Attain['Value_yield'] - Yield_with_Attain['Value_attainable'])
 
 min_diff_yr = pd.DataFrame()
-for idx, df in Yield_with_Attain.groupby(
-    ['crop', 'water_supply', 'rcp', 'c02_fertilization']):
+for idx, df in Yield_with_Attain.groupby(['crop', 'water_supply', 'rcp', 'c02_fertilization']):
     min_yr = pd.DataFrame([{
         'crop': idx[0],
         'water_supply': idx[1],
@@ -132,8 +131,11 @@ Yearbook_MC_ratio_ceiling.to_netcdf('data/results/step_7_Yearbook_MC_ratio.nc', 
 
 if __name__ == '__main__':
     
-    plotnine.options.figure_size = (16, 6)
+    plotnine.options.figure_size = (18, 6)
     plotnine.options.dpi = 100
+    
+    GAEZ_MC = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks=chunk_size)['data']
+    Yearbook_MC_ratio_ceiling = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks=chunk_size)['data']
     
     # Filter the data with rcp and c02_fertilization
     rcp = 'RCP2.6'

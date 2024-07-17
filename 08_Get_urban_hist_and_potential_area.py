@@ -21,6 +21,14 @@ urban_area = xr.open_dataset('data/LUCC/LUCC_area_km2.nc', chunks={'y': work_siz
 
 
 # Encode year and province to a single array
+'''
+Here we use a multiplication method to encode the year and province to a single array.
+    - The historical urban is an 2D array ranged from 0 to 10, indicating year of 2018, 2015, ..., 1991.
+    - The mask_province is a 2D array ranged from 0 to 6, indicating the province code.
+    
+By `mask_province` * `year_mul` + `urban_arr`, we can encode the year and province to a single array.
+For example, if a resulted cell has a value of 305, we then now that it must comes form `mask_province` (3) and and historical (5).
+'''
 year_mul = 100
 potential_mul = 10000
 urban_year_region = (mask_province * year_mul + urban_arr).astype(int)

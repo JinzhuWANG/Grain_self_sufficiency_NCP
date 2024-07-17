@@ -17,6 +17,8 @@ GYGA_PY_2010 = GYGA_PY.groupby(['Province','crop','water_supply']).mean(numeric_
 GAEZ_attain = pd.read_csv('data/results/step_2_GAEZ_attainable.csv')    # t/ha
 GAEZ_attain = GAEZ_attain.rename(columns={'bin' : 'Province'})
 
+
+# Get the ratio for GAEZ to GYGA
 GYGA_GAEZ_2010 = GYGA_PY_2010.merge(GAEZ_attain, on=['Province', 'crop', 'water_supply','year'], how='left')
 GYGA_GAEZ_2010['GAEZ2GYGA_mul'] = GYGA_GAEZ_2010['yield_potential_adj'] / GYGA_GAEZ_2010['Yield t/ha_mean']
 GYGA_GAEZ_2010 = GYGA_GAEZ_2010.set_index(['Province', 'crop', 'water_supply', 'rcp', 'c02_fertilization', ])[['GAEZ2GYGA_mul']]
@@ -31,6 +33,7 @@ mask_province = [(mask_province == idx).expand_dims({'Province': [p]})
 mask_province = xr.combine_by_coords(mask_province)
 mask_province = mask_province * GAEZ_mul                                    # ratio/pixel
 
+
 # Multiply the GAEZ_mean with the GAEZ2GYGA_mul
 GAEZ_mean = xr.open_dataarray('data/results/step_2_GAEZ_4_attain_mean.nc')  # kg/ha
 GAEZ_std = xr.open_dataarray('data/results/step_2_GAEZ_4_attain_std.nc')    # kg/ha
@@ -38,9 +41,11 @@ GAEZ_std = xr.open_dataarray('data/results/step_2_GAEZ_4_attain_std.nc')    # kg
 GAEZ_mean = GAEZ_mean * mask_province
 GAEZ_std = GAEZ_std * mask_province
 
+
 # Merge all province to a single map
 GAEZ_mean = GAEZ_mean.sum(dim=['Province'])['GAEZ2GYGA_mul']
 GAEZ_std = GAEZ_std.sum(dim=['Province'])['GAEZ2GYGA_mul']
+
 
 # Save the data
 GAEZ_mean.name = 'data'
@@ -88,7 +93,7 @@ if __name__ == '__main__':
     GAEZ_PY_df['obs_ci_upper'] = GAEZ_PY_df['Value_mean'] + (GAEZ_PY_df['Value_std'] / math.sqrt(len(GAEZ_PY_df)) * 1.96)
       
     # Plot the yield for each province of both yearbook and GAEZ
-    plotnine.options.figure_size = (16, 6)
+    plotnine.options.figure_size = (18, 6)
     plotnine.options.dpi = 100
     g = (
         plotnine.ggplot() +
@@ -119,7 +124,8 @@ if __name__ == '__main__':
             size=0.2,
             alpha=0.3) +
         plotnine.facet_grid('crop~Province', scales='free_y') +
-        plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
+        plotnine.ylab('Yield (t/ha)') +
+        plotnine.theme_bw()
     )
     
-    g.save('data/results/fig_step_3_GAEZ_agree_with_GYGA_kg_ha.svg')
+    g.save('data/results/fig_step_3_GAEZ_agree_with_GYGA_RCP26_t_ha.svg')

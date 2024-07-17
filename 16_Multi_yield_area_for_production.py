@@ -17,25 +17,40 @@ mask_province = [(mask_sum == idx).expand_dims({'Province': [p]}) * mask
 mask_province = xr.combine_by_coords(mask_province)
 
 
-# Read data
-yield_MC_yrbook = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks='auto')['data']
-yield_MC_actual = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks='auto')['data']        # t/ha
-yield_pred = yield_MC_actual * yield_MC_yrbook
+# Crop yield (t/ha)
+yield_MC_yrbook_trend = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks='auto')['data']
+yield_MC_attainable_trend = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks='auto')['data']        # t/ha
+yield_pred = yield_MC_attainable_trend * yield_MC_yrbook_trend
 
+
+# Urban encroachment (km2)
+'''
+Because the urban encroachment area is a total number for each province, we need to seperate it for 
+each crop and water_supply.
+
+For each province, we calculate the area ratio of each crop and water_supply to the total cropland area, 
+then use this ratio as weight to seperate the total cropland loss (i.e. urban encroachment) to each crop and water_supply.
+'''
 area_start = xr.open_dataset('data/results/step_15_GAEZ_area_km2_adjusted.nc', chunks='auto')['data']   # km2
 area_start = area_start * mask_province
 area_crop_water_ratio = area_start.sum(dim=['y', 'x', 'band']) / area_start.sum(dim=['crop', 'water_supply', 'y', 'x', 'band'])
-area_crop_water_ratio = area_crop_water_ratio * mask_province       # Assing the multiplier to each pixel in the given Province
-area_urban_reduce = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data'] # 
+area_crop_water_ratio = area_crop_water_ratio * mask_province       # Assign the multiplier to each pixel in the given Province
+
+area_urban_reduce = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data'] # km2
 area_urban_reduce = area_urban_reduce * mask_province
 area_urban_reduce = area_urban_reduce * area_crop_water_ratio
+
+# Reclamation area (km2)
 area_reclaim_increase = xr.open_dataset('data/results/step_14_reclimation_area_km2.nc', chunks='auto')['data'] # km2
 area_reclaim_increase = area_reclaim_increase * area_crop_water_ratio
+
 
 # Get production
 area_pred = area_start + area_reclaim_increase - area_urban_reduce
 area_pred = area_pred.sum('Province')
 production_pred = yield_pred * area_pred * 100 / 1e6                      # million tonnes
+
+
 
 
 # Calculate the difference between the yearbook and the predicted production
@@ -46,13 +61,12 @@ production_mean_stats = production_mean_stats.rename(
 production_mean_stats['Province'] = production_mean_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 
 production_pred_start = production_mean_stats\
-    .query('year == 2020 & rcp=="RCP2.6" & SSP =="SSP2" & c02_fertilization=="With CO2 Fertilization"').copy()
-production_pred_start = production_pred_start\
+    .query('year == 2020 & rcp=="RCP2.6" & SSP =="SSP2" & c02_fertilization=="With CO2 Fertilization"')\
+    .copy()\
     .groupby(['Province','crop'])\
     .sum(numeric_only=True).reset_index()
     
-yearbook_production = get_yearbook_production().query('year >= 1990')
-yearbook_production_start = yearbook_production.query('year == 2020').copy()
+yearbook_production_start = get_yearbook_production().query('year == 2020').copy()
 
 GAEZ_yr_production = pd.merge(
     production_pred_start,
@@ -60,12 +74,15 @@ GAEZ_yr_production = pd.merge(
     on = ['Province', 'crop'],
     suffixes = ('_pred', '_yrbook')
 )
-GAEZ_yr_production['pred_to_yrbook_ratio'] = GAEZ_yr_production['Production (Mt)_yrbook'] / GAEZ_yr_production['Production (Mt)_pred'] 
 
+GAEZ_yr_production['pred_to_yrbook_ratio'] = GAEZ_yr_production['Production (Mt)_yrbook'] / GAEZ_yr_production['Production (Mt)_pred'] 
 GAEZ_yr_production_xr = xr.Dataset.from_dataframe(
     GAEZ_yr_production.set_index(['Province', 'crop'])[['pred_to_yrbook_ratio']])     
 GAEZ_yr_production_xr = GAEZ_yr_production_xr['pred_to_yrbook_ratio'] * mask_province
 GAEZ_yr_production_xr = GAEZ_yr_production_xr.sum(dim=['Province'])
+
+
+
 
 # Forcing the production in the starting year to be the same as the yearbook
 production_pred_mean_adj = production_pred * GAEZ_yr_production_xr
@@ -82,6 +99,7 @@ if __name__ == '__main__':
     plotnine.options.figure_size = (10, 8)
     plotnine.options.dpi = 100
     
+    yearbook_production = get_yearbook_production().query('year >= 1990')
     yearbook_production_sum = yearbook_production\
         .groupby(['year']).sum(numeric_only=True).reset_index()
 

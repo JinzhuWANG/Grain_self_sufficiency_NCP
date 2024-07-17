@@ -4,7 +4,19 @@ from helper_func import read_yearbook
 
 
 def get_yearbook_yield():
-    # Read the yearbook dataWetland rice
+    """
+    Retrieves the historical yield data from the yearbook for wheat, wetland rice, and maize.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the historical yield data.
+        The DataFrame has the following columns:
+          - 'Year': The year of the yield data.
+          - 'Province': The province where the yield data is recorded.
+          - 'Crop': The crop for which the yield data is recorded.
+          - 'Value': The yield value in kilograms.
+          - 'Yield (tonnes)': The yield value converted to tonnes.
+    """
+    # Read the yearbook data for wheat, wetland rice, and maize
     wheat_yield_history = read_yearbook('data/Yearbook/Provincial_wheat_yield.csv','Wheat')
     rice_yield_history = read_yearbook('data/Yearbook/Provincial_rice_yield.csv','Wetland rice')
     maize_yield_history = read_yearbook('data/Yearbook/Provincial_maize_yield.csv','Maize')

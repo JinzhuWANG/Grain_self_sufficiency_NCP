@@ -3,8 +3,6 @@ import numpy as np
 import pymc as pm
 import arviz as az
 import plotnine
-from pyparsing import col
-import statsmodels.api as sm
 
 from helper_func.parameters import UNIQUE_VALUES
 from sklearn.preprocessing import StandardScaler
@@ -198,8 +196,11 @@ ppc_df_stats_adj_no_decrease.to_csv('data/results/step_9_3_2_predict_urban_area_
 # Sanity check
 if __name__ == '__main__':
     
-    plotnine.options.figure_size = (8, 6)
+    plotnine.options.figure_size = (10, 6)
     plotnine.options.dpi = 100
+    
+    ppc_df_stats_adj = pd.read_csv('data/results/step_9_3_1_predict_urban_area_adj.csv')
+    ppc_df_stats_adj_no_decrease = pd.read_csv('data/results/step_9_3_2_predict_urban_area_adj_no_decrease.csv')
     
     
     # Plot the corelation between Population and Area
@@ -209,6 +210,7 @@ if __name__ == '__main__':
         + plotnine.facet_wrap('~Province', scales='free')
         + plotnine.geom_abline(intercept=0, slope=1, color='grey', linetype='dashed')
         + plotnine.theme_bw()
+        + plotnine.labs(x='Population (normalized)', y='Urban Area (normalized)')
     )
     g.save('data/results/fig_step_9_3_1_population_vs_area.svg')
     
@@ -219,6 +221,7 @@ if __name__ == '__main__':
         + plotnine.geom_abline(intercept=0, slope=1, color='grey', linetype='dashed')
         + plotnine.facet_wrap('~Province', scales='free')
         + plotnine.theme_bw()
+        + plotnine.labs(x='Urban Population Ratio (normalized)', y='Urban Area (normalized)')
     )
     g.save('data/results/fig_step_9_3_2_ratio_vs_area.svg')
 

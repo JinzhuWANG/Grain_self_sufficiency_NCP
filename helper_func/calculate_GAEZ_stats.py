@@ -15,6 +15,23 @@ def weighted_bincount(mask, weights, minlength=None):
 
 
 def get_GAEZ_df(in_path:str = 'data/GAEZ_v4/GAEZ_df.csv', var_type:str = 'Harvested area'):
+    """
+    Retrieves a subset of the GAEZ dataframe based on the specified variable type.
+
+    Args:
+        in_path (str): The file path of the GAEZ dataframe CSV file. Default is 'data/GAEZ_v4/GAEZ_df.csv'.
+        var_type (str): The variable type to filter the GAEZ dataframe. Must be either 'Harvested area' or 'Yield'. Default is 'Harvested area'.
+
+    Returns:
+        pandas.DataFrame: A subset of the GAEZ dataframe filtered by the specified variable type.
+
+    Raises:
+        ValueError: If the variable type is not 'Harvested area' or 'Yield'.
+    """
+
+    if var_type not in ['Harvested area', 'Yield']:
+        raise ValueError('variable must be either "Harvested area" or "Yield"')
+    
     # Read the GAEZ_df which records the metadata of the GAEZ data path
     GAEZ_df = pd.read_csv(in_path)
     GAEZ_df = GAEZ_df.query('GAEZ == "GAEZ_5" and variable == @var_type and water_supply != "Total"')

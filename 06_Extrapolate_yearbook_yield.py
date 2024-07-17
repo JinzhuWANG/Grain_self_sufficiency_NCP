@@ -70,18 +70,19 @@ if __name__ == '__main__':
     plotnine.options.dpi = 100
     
     g = (plotnine.ggplot() +
-         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), alpha=0.6, size=0.2) +
+         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), alpha=0.2, size=0.2) +
          plotnine.geom_line(yearbook_yield_fitted,
                             plotnine.aes(x='year', y='mean' )
                             ) +
          plotnine.geom_ribbon(yearbook_yield_fitted, 
                               plotnine.aes(x='year', ymin='obs_ci_lower', ymax='obs_ci_upper'), 
-                              alpha=0.5
+                              alpha=0.3
                               ) +
          plotnine.facet_grid('crop~Province') +
-         plotnine.theme_bw()
+         plotnine.theme_bw() + 
+         plotnine.labs(x='Year', y='Yield (t/ha)')
          )
     
-    g.save('data/results/fig_step_6_yearbook_yield_extrapolated_kg_ha.svg')
+    g.save('data/results/fig_step_6_yearbook_yield_extrapolated_t_ha.svg')
 
 

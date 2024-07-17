@@ -61,7 +61,7 @@ if __name__ == '__main__':
     
     
     
-    
+    # Plot the yield
     rcp='RCP2.6'
     c02_fert = 'With CO2 Fertilization'
     yield_stats = yield_stats.query(f'rcp == "{rcp}" & c02_fertilization == "{c02_fert}"')
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         plotnine.theme_bw() 
         )
 
-    g.save('data/results/fig_step_5_GAEZ_actual_yield_extrapolate_by_attainable_multiplier_kg_ha.svg')
+    g.save('data/results/fig_step_5_GAEZ_actual_yield_extrapolate_by_attainable_multiplier_RCP26_t_ha.svg')
 
 
 

@@ -69,7 +69,7 @@ if __name__ == '__main__':
     GAEZ_yield_df[save_cols].to_csv('data/results/step_2_GAEZ_attainable.csv', index=False)
     
     # Filter the yield_array with specific rcp, c02_fertilization, and water_supply
-    rcp = "RCP4.5" 
+    rcp = "RCP2.6" 
     c02_fertilization = 'With CO2 Fertilization'
     GAEZ_yield_df = GAEZ_yield_df.query(f"rcp == '{rcp}' and c02_fertilization == '{c02_fertilization}'")
     GAEZ_yield_df['obs_ci_lower'] = GAEZ_yield_df['Yield t/ha_mean'] - (GAEZ_yield_df['Yield t/ha_std'] / math.sqrt(len(GAEZ_yield_df)) * 1.96)
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
 
     # Plot the yield for each province of both yearbook and GAEZ
-    plotnine.options.figure_size = (16, 6)
+    plotnine.options.figure_size = (18, 6)
     plotnine.options.dpi = 100
     g = (
         plotnine.ggplot() +
@@ -89,9 +89,11 @@ if __name__ == '__main__':
                             ) +
         plotnine.geom_point(yearbook_yield, plotnine.aes(x='year', y='Yield (tonnes)'), size=0.02, alpha=0.3) +
         plotnine.facet_grid('crop~bin', scales='free_y') +
-        plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1))
+        plotnine.theme(axis_text_x=plotnine.element_text(rotation=45, hjust=1)) +
+        plotnine.ylab('Yield (t/ha)') +
+        plotnine.theme_bw()
     )
     
-    g.save('data/results/fig_step_2_GAEZ_attainaiable_VS_yearbook_kg_ha.svg')
+    g.save('data/results/fig_step_2_GAEZ_attainaiable_VS_yearbook_RCP26_t_ha.svg')
 
 

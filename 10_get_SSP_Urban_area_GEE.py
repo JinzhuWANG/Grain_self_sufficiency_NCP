@@ -89,16 +89,18 @@ pred_Gao_diff['Source'] = 'Gao et al. (2020)'
 
 
 # Save the results
-pred_Li_ratio.to_csv('data/results/step_9_Urban_SSP_pred_Li_ratio.csv', index=False)
-pred_Gao_diff.to_csv('data/results/step_9_Urban_SSP_pred_Gao_diff.csv', index=False)
+pred_Li_ratio.to_csv('data/results/step_10_Urban_SSP_pred_Li_ratio.csv', index=False)
+pred_Gao_diff.to_csv('data/results/step_10_Urban_SSP_pred_Gao_diff.csv', index=False)
 
-pred_Li_ratio = pd.read_csv('data/results/step_9_Urban_SSP_pred_Li_ratio.csv')
-pred_Gao_diff = pd.read_csv('data/results/step_9_Urban_SSP_pred_Gao_diff.csv')
+
 
 if __name__ == "__main__":
     
-    plotnine.options.figure_size = (12, 8)
+    plotnine.options.figure_size = (10, 6)
     plotnine.options.dpi = 100
+    
+    pred_Li_ratio = pd.read_csv('data/results/step_10_Urban_SSP_pred_Li_ratio.csv')
+    pred_Gao_diff = pd.read_csv('data/results/step_10_Urban_SSP_pred_Gao_diff.csv')
     
     g = (plotnine.ggplot() +
          plotnine.geom_point(urban_area_hist, plotnine.aes(x='year', y='Area_cumsum_km2'), color='grey', size=0.05) +

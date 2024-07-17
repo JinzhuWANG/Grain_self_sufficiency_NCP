@@ -14,7 +14,6 @@ urban_pred_potential['remain'] = urban_pred_potential.eval('abs(Area_cumsum_km2 
 
 idx = urban_pred_potential.groupby(['Province', 'SSP', 'year'])['remain'].idxmin()
 potential_threshold = urban_pred_potential.loc[idx].reset_index(drop=True)
-potential_threshold.query('SSP == "SSP5" & Province == "Anhui"')
 
 # Save to csv
 potential_threshold = potential_threshold[['Province', 'SSP', 'year', 'Area_cumsum_km2', 'Potential']]
@@ -25,7 +24,7 @@ potential_threshold.to_csv('data/results/step_11_potential_threshold.csv', index
 
 if __name__ == '__main__':
     
-    plotnine.options.figure_size = (8, 6)
+    plotnine.options.figure_size = (10, 6)
     plotnine.options.dpi = 100
 
     g = (plotnine.ggplot()
