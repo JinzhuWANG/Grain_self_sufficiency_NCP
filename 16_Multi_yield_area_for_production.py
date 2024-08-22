@@ -18,8 +18,8 @@ mask_province = xr.combine_by_coords(mask_province)
 
 
 # Crop yield (t/ha)
-yield_MC_yrbook_trend = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks='auto')['data']
-yield_MC_attainable_trend = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks='auto')['data']        # t/ha
+yield_MC_yrbook_trend = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks='auto')['data']          
+yield_MC_attainable_trend = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks='auto')['data']          # t/ha
 yield_pred = yield_MC_attainable_trend * yield_MC_yrbook_trend
 
 
@@ -33,9 +33,9 @@ then use this ratio as weight to seperate the total cropland loss (i.e. urban en
 '''
 area_start = xr.open_dataset('data/results/step_15_GAEZ_area_km2_adjusted.nc', chunks='auto')['data']   # km2
 area_start = area_start * mask_province
+
 area_crop_water_ratio = area_start.sum(dim=['y', 'x', 'band']) / area_start.sum(dim=['crop', 'water_supply', 'y', 'x', 'band'])
 area_crop_water_ratio = area_crop_water_ratio * mask_province       # Assign the multiplier to each pixel in the given Province
-
 area_urban_reduce = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data'] # km2
 area_urban_reduce = area_urban_reduce * mask_province
 area_urban_reduce = area_urban_reduce * area_crop_water_ratio
@@ -48,23 +48,23 @@ area_reclaim_increase = area_reclaim_increase * area_crop_water_ratio
 # Get production
 area_pred = area_start + area_reclaim_increase - area_urban_reduce
 area_pred = area_pred.sum('Province')
-production_pred = yield_pred * area_pred * 100 / 1e6                      # million tonnes
+production_pred = yield_pred * (area_pred * 100) / 1e6                      # million tonnes
 
 
 
 
 # Calculate the difference between the yearbook and the predicted production
 production_pred_mean = production_pred.mean(dim=['sample'])
-production_mean_stats = bincount_with_mask(mask_sum, production_pred_mean)
-production_mean_stats = production_mean_stats.rename(
-    columns={'Value': 'Production (Mt)', 'bin': 'Province'})
-production_mean_stats['Province'] = production_mean_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 
+production_mean_stats = bincount_with_mask(mask_sum, production_pred_mean)
+production_mean_stats = production_mean_stats.rename(columns={'Value': 'Production (Mt)', 'bin': 'Province'})
+production_mean_stats['Province'] = production_mean_stats['Province'].map(dict(enumerate(UNIQUE_VALUES['Province'])))
 production_pred_start = production_mean_stats\
     .query('year == 2020 & rcp=="RCP2.6" & SSP =="SSP2" & c02_fertilization=="With CO2 Fertilization"')\
     .copy()\
     .groupby(['Province','crop'])\
-    .sum(numeric_only=True).reset_index()
+    .sum(numeric_only=True)\
+    .reset_index()
     
 yearbook_production_start = get_yearbook_production().query('year == 2020').copy()
 
@@ -76,6 +76,9 @@ GAEZ_yr_production = pd.merge(
 )
 
 GAEZ_yr_production['pred_to_yrbook_ratio'] = GAEZ_yr_production['Production (Mt)_yrbook'] / GAEZ_yr_production['Production (Mt)_pred'] 
+GAEZ_yr_production.to_csv('data/results/step_16_GAEZ_yb_base_year_production.csv', index=False)
+
+# Convert the pred_to_yrbook_ratio to xarray
 GAEZ_yr_production_xr = xr.Dataset.from_dataframe(
     GAEZ_yr_production.set_index(['Province', 'crop'])[['pred_to_yrbook_ratio']])     
 GAEZ_yr_production_xr = GAEZ_yr_production_xr['pred_to_yrbook_ratio'] * mask_province
@@ -85,10 +88,12 @@ GAEZ_yr_production_xr = GAEZ_yr_production_xr.sum(dim=['Province'])
 
 
 # Forcing the production in the starting year to be the same as the yearbook
-production_pred_mean_adj = production_pred * GAEZ_yr_production_xr
-
-production_pred_mean_adj.name = 'data'
 encoding = {'data': {'dtype': 'float32', 'zlib': True, 'complevel': 9}}
+GAEZ_yr_production_xr.name = 'data'
+GAEZ_yr_production_xr.to_netcdf('data/results/step_16_GAEZ_yb_base_year_production.nc', encoding=encoding)
+
+production_pred_mean_adj = production_pred * GAEZ_yr_production_xr
+production_pred_mean_adj.name = 'data'
 production_pred_mean_adj.to_netcdf('data/results/step_16_production_pred_adj.nc', encoding=encoding)
 
 
