@@ -35,6 +35,7 @@ mask_province = [xr.where(mask_sum == idx, 1, 0).expand_dims({'Province': [p]})
                  for idx,p in enumerate(UNIQUE_VALUES['Province'])]
 mask_province = xr.combine_by_coords(mask_province).astype('float32') 
 
+
 # Read data
 yearbook_trend = xr.open_dataset('data/results/step_6_yearbook_yield_extrapolated.nc')
 

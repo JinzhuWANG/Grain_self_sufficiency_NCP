@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
 
     production_pred_mean = production_pred_mean_adj.mean(dim=['sample'])
-    production_pred_std = production_pred.std(dim=['sample'])
+    production_pred_std = production_pred_mean_adj.std(dim=['sample'])
 
     production_mean_stats = bincount_with_mask(mask_sum, production_pred_mean)
     production_std_stats = bincount_with_mask(mask_sum, production_pred_std)

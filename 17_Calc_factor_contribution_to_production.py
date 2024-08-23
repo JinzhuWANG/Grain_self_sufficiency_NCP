@@ -26,7 +26,6 @@ zero_xr = xr.DataArray(0, dims=['year'], coords={'year': [BASE_YR]})
 pred_to_yearbook_ratio = xr.open_dataset('data/results/step_16_GAEZ_yb_base_year_production.nc', chunks='auto')['data']
 
 
-
 # Crop yield - yearbook trend (multiplier)
 yield_MC_yrbook_trend = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.nc', chunks='auto')['data']
 
@@ -34,16 +33,16 @@ yield_MC_yrbook_trend = xr.open_dataset('data/results/step_7_Yearbook_MC_ratio.n
 yield_MC_attainable_trend = xr.open_dataset('data/results/step_7_GAEZ_yield_MC.nc', chunks='auto')['data']          
 
 # Crop area - urban encroachment (km2)
-area_start = xr.open_dataset('data/results/step_15_GAEZ_area_km2_adjusted.nc', chunks='auto')['data']
+area_start = xr.open_dataset('data/results/step_15_GAEZ_area_km2_adjusted.nc', chunks='auto')['data']   # km2
 area_start = area_start * mask_province
 area_crop_water_ratio = area_start.sum(dim=['y', 'x', 'band']) / area_start.sum(dim=['crop', 'water_supply', 'y', 'x', 'band'])
 area_crop_water_ratio = area_crop_water_ratio * mask_province       # Assign the multiplier to each pixel in the given Province
-area_urban_reduce = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data'] 
+area_urban_reduce = xr.open_dataset('data/results/step_13_urban_occupy_cropland.nc', chunks='auto')['data'] # km2
 area_urban_reduce = area_urban_reduce * mask_province
 area_urban_reduce = area_urban_reduce * area_crop_water_ratio
 
 # Crop area - reclamation (km2)
-area_reclaim_increase = xr.open_dataset('data/results/step_14_reclimation_area_km2.nc', chunks='auto')['data']
+area_reclaim_increase = xr.open_dataset('data/results/step_14_reclimation_area_km2.nc', chunks='auto')['data'] # km2
 area_reclaim_increase = area_reclaim_increase * area_crop_water_ratio
 
 
@@ -68,36 +67,54 @@ contr_yb = (delta_yb * yield_MC_attainable_trend) \
          * (area_start + area_reclaim_increase - area_urban_reduce) \
          * 100 / 1e6 \
          * pred_to_yearbook_ratio
-
-contr_climate = (delta_climate * yield_MC_attainable_trend) \
+    
+contr_climate = delta_climate \
               * (area_start + area_reclaim_increase - area_urban_reduce) \
               * 100 / 1e6 \
               * pred_to_yearbook_ratio
               
-contr_urban = (delta_urban * yield_MC_attainable_trend) \
-            * (area_start + area_reclaim_increase - area_urban_reduce) \
+contr_urban = - delta_urban \
+            * (yield_MC_yrbook_trend * yield_MC_attainable_trend) \
             * 100 / 1e6 \
             * pred_to_yearbook_ratio
             
-contr_reclaim = (delta_reclaim * yield_MC_attainable_trend) \
-                * (area_start + area_reclaim_increase - area_urban_reduce) \
+contr_reclaim = delta_reclaim \
+                * (yield_MC_yrbook_trend * yield_MC_attainable_trend) \
                 * 100 / 1e6 \
                 * pred_to_yearbook_ratio
+                
+contr_net = contr_yb + contr_climate + contr_urban + contr_reclaim
+
+# Get stats
+contr_yb_stats = contr_yb.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+contr_climate_stats = contr_climate.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+contr_urban_stats = contr_urban.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+contr_reclaim_stats = contr_reclaim.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+contr_net_stats = contr_net.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+
+
+# Save the data
+contr_yb_stats.to_csv('data/results/step_17_contr_yb.csv', index=False)
+contr_climate_stats.to_csv('data/results/step_17_contr_climate.csv', index=False)
+contr_urban_stats.to_csv('data/results/step_17_contr_urban.csv', index=False)
+contr_reclaim_stats.to_csv('data/results/step_17_contr_reclaim.csv', index=False)
+contr_net_stats.to_csv('data/results/step_17_contr_net.csv', index=False)
+
+
 
 
 if __name__ == '__main__':
     
     sel_dict = dict(
-        sample=0, 
-        crop='Wheat', 
-        water_supply='Irrigated',
+        sample=1, 
         rcp='RCP4.5',
-        c02_fertilization='With CO2 Fertilization',
+        c02_fertilization='Without CO2 Fertilization',
         SSP='SSP2')
     
     # Contribution from yearbook trend
     contr_yb_one = contr_yb.sel(**sel_dict, drop=True)
     contr_yb_one_stats = contr_yb_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+    
     
     fig_yb = (plotnine.ggplot(contr_yb_one_stats) +
             plotnine.aes(x='year', y='delta', color='Province') +
@@ -126,7 +143,7 @@ if __name__ == '__main__':
             )
     
     # Contribution from reclamation
-    contr_reclaim_one = contr_reclaim.sel(**sel_dict, drop=True)
+    contr_reclaim_one = contr_reclaim.sel(**{k:v for k,v in sel_dict.items() if k !='SSP'}, drop=True)
     contr_reclaim_one_stats = contr_reclaim_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
     
     fig_reclaim = (plotnine.ggplot(contr_reclaim_one_stats) +
@@ -135,6 +152,15 @@ if __name__ == '__main__':
             plotnine.theme_bw()
             )
 
-
+    # Net contribution
+    contr_net_one = contr_net.sel(**sel_dict, drop=True)
+    contr_net_one_stats = contr_net_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+    
+    fig_net = (plotnine.ggplot(contr_net_one_stats) +
+            plotnine.aes(x='year', y='cumsum', color='Province') +
+            plotnine.geom_line() +
+            plotnine.theme_bw()
+            )
+    
 
 
