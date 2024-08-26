@@ -1,4 +1,6 @@
 import math
+from re import I
+from unicodedata import numeric
 import numpy as np
 import xarray as xr
 import rioxarray as rxr
@@ -85,6 +87,8 @@ contr_reclaim = delta_reclaim \
                 
 contr_net = contr_yb + contr_climate + contr_urban + contr_reclaim
 
+
+
 # Get stats
 contr_yb_stats = contr_yb.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
 contr_climate_stats = contr_climate.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
@@ -101,66 +105,107 @@ contr_reclaim_stats.to_csv('data/results/step_17_contr_reclaim.csv', index=False
 contr_net_stats.to_csv('data/results/step_17_contr_net.csv', index=False)
 
 
+# Compute the stats for plotting
+groups = ['rcp', 'SSP', 'c02_fertilization', 'crop', 'water_supply', 'Province', 'year']
 
+def get_plot_df(in_df, groups=groups):
+    in_df = in_df.copy().sort_values(groups)
+    in_df = in_df.groupby(groups).describe(percentiles=[0.05, 0.5, 0.95])[['delta']].reset_index()
+    in_df.columns = ['_'.join(col).strip() if col[1] != '' else col[0] for col in in_df.columns.values]
+    group_obj = in_df.groupby([i for i in groups if i != 'year'])
+    in_df['delta_mean_cumsum'] = group_obj[['delta_mean']].apply(lambda x: x['delta_mean'].cumsum()).values
+    in_df['delta_5%_cumsum'] = group_obj[['delta_5%']].apply(lambda x: x['delta_5%'].cumsum()).values
+    in_df['delta_95%_cumsum'] = group_obj[['delta_95%']].apply(lambda x: x['delta_95%'].cumsum()).values
+    return in_df
+    
+contr_yb_stats_plot = get_plot_df(contr_yb_stats)
+contr_climate_stats_plot = get_plot_df(contr_climate_stats)
+contr_urban_stats_plot = get_plot_df(contr_urban_stats)
+contr_reclaim_stats_plot = get_plot_df(contr_reclaim_stats,[i for i in groups if not i in ['rcp', 'SSP', 'c02_fertilization']])
+contr_net_stats_plot = get_plot_df(contr_net_stats)
+
+# Save aggregated data to csv
+contr_yb_stats_plot.to_csv('data/results/step_17_contr_yb_plot.csv', index=False)
+contr_climate_stats_plot.to_csv('data/results/step_17_contr_climate_plot.csv', index=False)
+contr_urban_stats_plot.to_csv('data/results/step_17_contr_urban_plot.csv', index=False)
+contr_reclaim_stats_plot.to_csv('data/results/step_17_contr_reclaim_plot.csv', index=False)
+contr_net_stats_plot.to_csv('data/results/step_17_contr_net_plot.csv', index=False)
+
+
+    
 
 if __name__ == '__main__':
     
-    sel_dict = dict(
-        sample=1, 
-        rcp='RCP4.5',
-        c02_fertilization='Without CO2 Fertilization',
-        SSP='SSP2')
+    sel_dict = {
+        'rcp': 'RCP4.5',
+        'c02_fertilization': 'Without CO2 Fertilization',
+        'SSP': 'SSP2'}
+    sel_str = ' & '.join([f'{k}=="{v}"' for k, v in sel_dict.items()])
     
     # Contribution from yearbook trend
-    contr_yb_one = contr_yb.sel(**sel_dict, drop=True)
-    contr_yb_one_stats = contr_yb_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+    contr_yb_total = contr_yb_stats_plot\
+        .groupby(list(sel_dict.keys()) + ['year'])\
+        .sum(numeric_only=True)\
+        .reset_index()
     
-    
-    fig_yb = (plotnine.ggplot(contr_yb_one_stats) +
-            plotnine.aes(x='year', y='delta', color='Province') +
-            plotnine.geom_line() +
+    fig_yb = (plotnine.ggplot(contr_yb_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
             plotnine.theme_bw()
             )
+    fig_yb.save('data/results/step_17_contr_yb_cumsum.png')
     
     # Contribution from climate change
-    contr_climate_one = contr_climate.sel(**sel_dict, drop=True)
-    contr_climate_one_stats = contr_climate_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
-    
-    fig_climate = (plotnine.ggplot(contr_climate_one_stats) +
-            plotnine.aes(x='year', y='delta', color='Province') +
-            plotnine.geom_line() +
+    contr_climate_total = contr_climate_stats_plot\
+        .groupby(list(sel_dict.keys()) + ['year'])\
+        .sum(numeric_only=True)\
+        .reset_index()
+        
+    fig_climate = (plotnine.ggplot(contr_climate_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
             plotnine.theme_bw()
             )
+    fig_climate.save('data/results/step_17_contr_climate_cumsum.png')
     
     # Contribution from urban encroachment
-    contr_urban_one = contr_urban.sel(**sel_dict, drop=True)
-    contr_urban_one_stats = contr_urban_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
-    
-    fig_urban = (plotnine.ggplot(contr_urban_one_stats) +
-            plotnine.aes(x='year', y='delta', color='Province') +
-            plotnine.geom_line() +
+    contr_urban_total = contr_urban_stats_plot\
+        .groupby(list(sel_dict.keys()) + ['year'])\
+        .sum(numeric_only=True)\
+        .reset_index()
+        
+    fig_urban = (plotnine.ggplot(contr_urban_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
             plotnine.theme_bw()
             )
+    fig_urban.save('data/results/step_17_contr_urban_cumsum.png')
     
     # Contribution from reclamation
-    contr_reclaim_one = contr_reclaim.sel(**{k:v for k,v in sel_dict.items() if k !='SSP'}, drop=True)
-    contr_reclaim_one_stats = contr_reclaim_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
-    
-    fig_reclaim = (plotnine.ggplot(contr_reclaim_one_stats) +
-            plotnine.aes(x='year', y='delta', color='Province') +
-            plotnine.geom_line() +
+    contr_reclaim_total = contr_reclaim_stats_plot\
+        .groupby(list(sel_dict.keys()) + ['year'])\
+        .sum(numeric_only=True)\
+        .reset_index()
+        
+    fig_reclaim = (plotnine.ggplot(contr_reclaim_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
             plotnine.theme_bw()
             )
-
-    # Net contribution
-    contr_net_one = contr_net.sel(**sel_dict, drop=True)
-    contr_net_one_stats = contr_net_one.sum(['x', 'y']).compute().to_dataframe(name='delta').reset_index()
+    fig_reclaim.save('data/results/step_17_contr_reclaim_cumsum.png')
     
-    fig_net = (plotnine.ggplot(contr_net_one_stats) +
-            plotnine.aes(x='year', y='cumsum', color='Province') +
-            plotnine.geom_line() +
+    # Contribution from net
+    contr_net_total = contr_net_stats_plot\
+        .groupby(list(sel_dict.keys()) + ['year'])\
+        .sum(numeric_only=True)\
+        .reset_index()
+        
+    fig_net = (plotnine.ggplot(contr_net_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
             plotnine.theme_bw()
             )
+    fig_net.save('data/results/step_17_contr_net_cumsum.png')
     
 
 

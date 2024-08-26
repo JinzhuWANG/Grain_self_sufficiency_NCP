@@ -45,7 +45,7 @@ POP_NCP.to_csv('data/results/POP_NCP.csv', index=False)
 
 # Sanity check
 if __name__ == '__main__':
-    plotnine.options.figure_size = (12, 8)
+    plotnine.options.figure_size = (14, 8)
     plotnine.options.dpi = 100
 
     # GDP-China
