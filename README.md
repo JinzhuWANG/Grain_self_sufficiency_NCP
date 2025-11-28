@@ -146,20 +146,3 @@ The modeling approach combines:
 4. **Spatial analysis**: Raster-based land use change modeling
 5. **Uncertainty propagation**: Monte Carlo sampling through the modeling chain
 
-## Contributing
-
-This is a research project. For questions or collaboration opportunities, please refer to the associated publications or contact the repository maintainer.
-
-## License
-
-[Specify license if applicable]
-
-## Citation
-
-If you use this code or methodology, please cite:
-
-[Add relevant publications]
-
-## Contact
-
-[Add contact information]
