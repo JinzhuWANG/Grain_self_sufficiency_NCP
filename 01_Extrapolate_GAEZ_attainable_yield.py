@@ -1,6 +1,4 @@
-import numpy as np
 import pandas as pd
-from rasterio import band
 import rioxarray
 import xarray as xr
 import rioxarray as rxr

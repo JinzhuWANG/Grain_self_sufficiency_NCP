@@ -1,15 +1,9 @@
-import math
-from re import I
-from unicodedata import numeric
-import numpy as np
 import xarray as xr
 import rioxarray as rxr
 import pandas as pd
 import plotnine
 
-from helper_func.calculate_GAEZ_stats import bincount_with_mask, get_GAEZ_stats
-from helper_func.get_yearbook_records import get_yearbook_area, get_yearbook_production
-from helper_func.parameters import UNIQUE_VALUES, Monte_Carlo_num, BASE_YR
+from helper_func.parameters import UNIQUE_VALUES, BASE_YR
 
 
 # Get masks
@@ -132,52 +126,70 @@ contr_reclaim_stats_plot.to_csv('data/results/step_17_contr_reclaim_plot.csv', i
 contr_net_stats_plot.to_csv('data/results/step_17_contr_net_plot.csv', index=False)
 
 
+# Read aggregated data from csv
+contr_yb_stats_plot = pd.read_csv('data/results/step_17_contr_yb_plot.csv')
+contr_climate_stats_plot = pd.read_csv('data/results/step_17_contr_climate_plot.csv')
+contr_urban_stats_plot = pd.read_csv('data/results/step_17_contr_urban_plot.csv')
+contr_reclaim_stats_plot = pd.read_csv('data/results/step_17_contr_reclaim_plot.csv')
+contr_net_stats_plot = pd.read_csv('data/results/step_17_contr_net_plot.csv')
+
+
     
 
 if __name__ == '__main__':
     
     sel_dict = {
         'rcp': 'RCP4.5',
-        'c02_fertilization': 'Without CO2 Fertilization',
+        # 'c02_fertilization': 'Without CO2 Fertilization',
         'SSP': 'SSP2'}
+    
     sel_str = ' & '.join([f'{k}=="{v}"' for k, v in sel_dict.items()])
+    group_keys = list(sel_dict.keys()) + ['c02_fertilization','year']
+    
     
     # Contribution from yearbook trend
     contr_yb_total = contr_yb_stats_plot\
-        .groupby(list(sel_dict.keys()) + ['year'])\
+        .groupby(group_keys)\
         .sum(numeric_only=True)\
         .reset_index()
+    contr_yb_total['type'] = 'Yearbook Trend'
     
     fig_yb = (plotnine.ggplot(contr_yb_total.query(sel_str)) +
-            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
-            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
-            plotnine.theme_bw()
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum', color='c02_fertilization')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum', fill='c02_fertilization'), alpha=0.5) +
+            plotnine.theme_bw() +
+            plotnine.ylab('Contribution to Production (million t)') 
             )
+    
     fig_yb.save('data/results/fig_step_17_contr_yb_cumsum.svg')
     
     # Contribution from climate change
     contr_climate_total = contr_climate_stats_plot\
-        .groupby(list(sel_dict.keys()) + ['year'])\
+        .groupby(group_keys)\
         .sum(numeric_only=True)\
         .reset_index()
+    contr_climate_total['type'] = 'Climate Change'
         
     fig_climate = (plotnine.ggplot(contr_climate_total.query(sel_str)) +
-            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
-            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
-            plotnine.theme_bw()
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum', color='c02_fertilization')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum', fill='c02_fertilization'), alpha=0.5) +
+            plotnine.theme_bw() +
+            plotnine.ylab('Contribution to Production (million t)')
             )
     fig_climate.save('data/results/fig_step_17_contr_climate_cumsum.svg')
     
     # Contribution from urban encroachment
     contr_urban_total = contr_urban_stats_plot\
-        .groupby(list(sel_dict.keys()) + ['year'])\
+        .groupby(group_keys)\
         .sum(numeric_only=True)\
         .reset_index()
+    contr_urban_total['type'] = 'Urban Encroachment'
         
     fig_urban = (plotnine.ggplot(contr_urban_total.query(sel_str)) +
-            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
-            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
-            plotnine.theme_bw()
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum', color='c02_fertilization')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum', fill='c02_fertilization'), alpha=0.5) +
+            plotnine.theme_bw() +
+            plotnine.ylab('Contribution to Production (million t)')
             )
     fig_urban.save('data/results/fig_step_17_contr_urban_cumsum.svg')
     
@@ -187,25 +199,50 @@ if __name__ == '__main__':
         .sum(numeric_only=True)\
         .reset_index()
         
+    contr_reclaim_total['type'] = 'Reclamation'
+    contr_reclaim_total = contr_reclaim_total.assign(**sel_dict)
+        
     fig_reclaim = (plotnine.ggplot(contr_reclaim_total) +
             plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
             plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
-            plotnine.theme_bw()
+            plotnine.theme_bw() +
+            plotnine.ylab('Contribution to Production (million t)')
             )
     fig_reclaim.save('data/results/fig_step_17_contr_reclaim_cumsum.svg')
     
+    
+    
+    
     # Contribution from net
     contr_net_total = contr_net_stats_plot\
-        .groupby(list(sel_dict.keys()) + ['year'])\
+        .groupby(group_keys)\
         .sum(numeric_only=True)\
         .reset_index()
         
     fig_net = (plotnine.ggplot(contr_net_total.query(sel_str)) +
-            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum')) +
-            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum'), alpha=0.5) +
-            plotnine.theme_bw()
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum', color='c02_fertilization')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum', fill='c02_fertilization'), alpha=0.5) +
+            plotnine.theme_bw() +
+            plotnine.ylab('Contribution to Production (million t)')
             )
     fig_net.save('data/results/fig_step_17_contr_net_cumsum.svg')
+    
+    
+    # Contribution from all factors
+    contr_total = pd.concat([contr_yb_total, contr_climate_total, contr_urban_total, contr_reclaim_total])
+    fig_contr_all = (plotnine.ggplot(contr_total.query(sel_str)) +
+            plotnine.geom_line(plotnine.aes(x='year', y='delta_mean_cumsum', color='c02_fertilization')) +
+            plotnine.geom_ribbon(plotnine.aes(x='year', ymin='delta_5%_cumsum', ymax='delta_95%_cumsum', fill='c02_fertilization'), alpha=0.5) +
+            plotnine.facet_wrap('type', nrow=2, ncol=2) +
+            plotnine.theme_bw() + 
+            plotnine.theme(figure_size=(14, 10)) +
+            plotnine.ylab('Contribution to Production (million t)')
+            )
+    fig_contr_all.save('data/results/fig_step_17_contr_all_cumsum.svg')
+    
+    
+    
+    
     
 
 

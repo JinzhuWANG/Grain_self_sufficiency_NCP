@@ -10,7 +10,6 @@ from shapely.geometry import box
 from helper_func.parameters import BLOCK_SIZE
 
 from rasterio.enums import Resampling
-from rasterio import shutil as rio_shutil
 from rasterio.vrt import WarpedVRT
 
 
@@ -88,8 +87,10 @@ if __name__ == '__main__':
     files_dict = {
         'Norm_Urban_1990_2019' : 'data/LUCC/North_China_Plain_1990_2019.tif',
         'Norm_CLCD_v01_2019' : 'data/LUCC/CLCD_v01_2019.tif',
-        'Norm_Transition_potential': ['data/LUCC/Transition_Potential-0000000000-0000000000.tif',
-                                     'data/LUCC/Transition_Potential-0000046592-0000000000.tif'],
+        'Norm_Transition_potential': [
+            'data/LUCC/Transition_Potential-0000000000-0000000000.tif',
+            'data/LUCC/Transition_Potential-0000046592-0000000000.tif'
+        ],
     }
 
     warp_option = get_warp_options(files_dict.values())

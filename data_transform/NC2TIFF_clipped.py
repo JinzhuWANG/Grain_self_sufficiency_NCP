@@ -62,12 +62,13 @@ def clip_urban(in_path:str, out_path:str, region_shp:gpd.GeoDataFrame):
 
 
 if __name__  == "__main__":
-    
-    region_shp = gpd.read_file('data/Vector_boundary/North_china_Plain_Province.shp')
+
+    region_shp_CN = gpd.read_file('data/Vector_boundary/China_boundary.shp')
+    region_shp_CN = region_shp_CN.sort_values('EN_Name').reset_index(drop=True).query("EN_Name != 'Hongkong'")
     
     nc_files = glob('data/Urban_1km_1km/Raw/*.nc')
     out_path = [f"data/Urban_1km_1km/clipped/{os.path.basename(i).replace('nc','tiff')}" 
                 for i in nc_files]
     
     for in_path, out_path in tqdm(zip(nc_files, out_path), total=len(nc_files)):
-        clip_urban(in_path, out_path, region_shp)
+        clip_urban(in_path, out_path, region_shp_CN)

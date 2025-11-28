@@ -249,7 +249,8 @@ if __name__ == '__main__':
              ppc_df_stats_adj_no_decrease,
              plotnine.aes(x='year', ymin='2.5%', ymax='97.5%', fill='SSP'),
              alpha=0.3)
-        + plotnine.facet_wrap('~Province', scales='free')
+        + plotnine.facet_wrap('~Province')
         + plotnine.theme_bw()
+        + plotnine.labs(x='Year', y='Urban Area (km2)')
     )
     g.save('data/results/fig_step_9_3_4_future_urban_area_km2_1std_mixed_effects_no_decrease.svg')

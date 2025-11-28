@@ -46,7 +46,8 @@ if __name__ == "__main__":
     GAEZ_df = pandas.read_csv('data/GAEZ_v4/GAEZ_df.csv')
 
     # Read the shp of the research region
-    research_region_shp = gpd.read_file('data/Vector_boundary/North_china_Plain_Province.shp')
+    research_region_shp = gpd.read_file('data/Vector_boundary/China_boundary.shp')
+    research_region_shp = research_region_shp.sort_values('EN_Name').reset_index(drop=True).query("EN_Name != 'Hongkong'")
 
     # Check if the crs of the GAEZ and shp are the same
     with rasterio.open(GAEZ_df.iloc[0]['fpath']) as src:
